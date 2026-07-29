@@ -2,21 +2,21 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
+/** Soft-tinted, not solid fills — solid status blocks read as cheap at this size. */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold w-fit whitespace-nowrap shrink-0',
+  'inline-flex w-fit shrink-0 items-center gap-1 rounded-xs px-1.5 py-px text-[10px] font-medium tracking-[0.01em] whitespace-nowrap tabular-nums',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        success: 'border-transparent bg-success text-white',
-        warning: 'border-transparent bg-warning text-white',
-        destructive: 'border-transparent bg-destructive text-destructive-foreground',
-        outline: 'text-foreground border-border',
+        neutral: 'bg-surface-hover text-fg-secondary',
+        accent: 'bg-accent-soft text-accent',
+        positive: 'bg-positive-soft text-positive',
+        caution: 'bg-caution-soft text-caution',
+        negative: 'bg-negative-soft text-negative',
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: 'neutral',
     },
   },
 );

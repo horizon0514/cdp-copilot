@@ -1,7 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Settings, ProviderId, DEFAULT_MODELS } from '../../lib/storage/schema';
-import { Card, CardContent } from './ui/card';
-import { Label } from './ui/label';
+import { Label, SectionLabel } from './ui/label';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -21,6 +20,26 @@ async function ensureHostPermission(baseURL: string | undefined): Promise<void> 
 
   const granted = await chrome.permissions.request({ origins: [`${origin}/*`] });
   if (!granted) throw new Error(`Permission for ${origin} was not granted — can't use this endpoint.`);
+}
+
+function Field({
+  label,
+  hint,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 px-2.5 py-2.5">
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {hint && <p className="-mt-0.5 text-[11px] leading-[1.45] text-fg-tertiary">{hint}</p>}
+      {children}
+    </div>
+  );
 }
 
 export default function SettingsPanel({ initial, onSave, onClose }: Props) {
@@ -53,72 +72,69 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
   };
 
   return (
-    <form className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-4" onSubmit={handleSubmit}>
-      <h2 className="text-sm font-semibold">Settings</h2>
+    <form className="flex flex-1 flex-col gap-2 overflow-y-auto p-3" onSubmit={handleSubmit}>
+      <SectionLabel>Model provider</SectionLabel>
 
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="provider">Provider</Label>
-            <Select value={provider} onValueChange={(v) => handleProviderChange(v as ProviderId)}>
-              <SelectTrigger id="provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="openai-compatible">OpenAI-compatible (custom base URL)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="divide-y divide-line rounded-lg border border-line bg-surface">
+        <Field label="Provider" htmlFor="provider">
+          <Select value={provider} onValueChange={(v) => handleProviderChange(v as ProviderId)}>
+            <SelectTrigger id="provider">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="openai">OpenAI</SelectItem>
+              <SelectItem value="anthropic">Anthropic</SelectItem>
+              <SelectItem value="openai-compatible">OpenAI-compatible</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="apiKey">API key</Label>
-            <p className="text-[11px] font-normal text-muted-foreground">
-              Stored locally in this browser profile only, never synced.
-            </p>
-            <Input
-              id="apiKey"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              required
-            />
-          </div>
+        <Field label="API key" hint="Stored locally in this browser profile only, never synced." htmlFor="apiKey">
+          <Input
+            id="apiKey"
+            type="password"
+            placeholder="sk-…"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            required
+          />
+        </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="model">Model</Label>
-            <Input id="model" type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
-          </div>
+        <Field label="Model" htmlFor="model">
+          <Input id="model" type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
+        </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="baseURL">
-              Base URL {provider === 'openai-compatible' ? '' : '(optional override)'}
-            </Label>
-            <p className="text-[11px] font-normal text-muted-foreground">
-              Custom endpoints (OpenRouter, Azure OpenAI, local Ollama, etc.) need an extra one-time permission
-              grant.
-            </p>
-            <Input
-              id="baseURL"
-              type="url"
-              placeholder="https://..."
-              value={baseURL}
-              onChange={(e) => setBaseURL(e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        <Field
+          label={provider === 'openai-compatible' ? 'Base URL' : 'Base URL (optional)'}
+          hint="Custom endpoints (OpenRouter, Azure, local Ollama) need a one-time permission grant."
+          htmlFor="baseURL"
+        >
+          <Input
+            id="baseURL"
+            type="url"
+            placeholder="https://…"
+            value={baseURL}
+            onChange={(e) => setBaseURL(e.target.value)}
+          />
+        </Field>
+      </div>
 
       {error && (
-        <div className="rounded-md border border-destructive-border bg-destructive-bg px-3 py-2 text-xs text-destructive">
+        <div className="rounded-md border border-negative-line bg-negative-soft px-2.5 py-1.5 text-[11.5px] leading-[1.45] text-negative">
           {error}
         </div>
       )}
 
-      <Button type="submit" disabled={saving} className="self-start">
-        {saving ? 'Saving…' : 'Save'}
-      </Button>
+      <div className="flex items-center gap-2 pt-0.5">
+        <Button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
+        {initial && (
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

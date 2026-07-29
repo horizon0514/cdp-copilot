@@ -4,13 +4,16 @@ import { cn } from '../lib/utils';
 import { DisplayMessage } from '../state/conversationStore';
 import ToolCallCard from './ToolCallCard';
 
-function TypingDots() {
+function ThinkingRow() {
   return (
-    <span className="inline-flex items-center gap-1 py-0.5" aria-label="Thinking">
-      <span className="typing-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0s]" />
-      <span className="typing-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.15s]" />
-      <span className="typing-dot size-1.5 rounded-full bg-muted-foreground [animation-delay:0.3s]" />
-    </span>
+    <div className="flex items-center gap-1.5 text-[12px] text-fg-tertiary">
+      <span className="flex gap-[3px]">
+        <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:0ms]" />
+        <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
+        <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
+      </span>
+      Thinking
+    </div>
   );
 }
 
@@ -22,38 +25,40 @@ export default function MessageBubble({
   isStreaming?: boolean;
 }) {
   const hasText = message.text.trim().length > 0;
-  const showTyping = isStreaming && message.role === 'assistant' && !hasText && message.toolCalls.length === 0;
-  const showBubble = message.role === 'user' || hasText || showTyping;
   const isUser = message.role === 'user';
+  const showThinking = isStreaming && !isUser && !hasText && message.toolCalls.length === 0;
+
+  if (isUser) {
+    return (
+      <div className="animate-enter flex justify-end">
+        <div className="max-w-[85%] rounded-lg border border-accent-line bg-accent-soft px-2.5 py-1.5 text-[13px] break-words whitespace-pre-wrap text-fg">
+          {message.text}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={cn('animate-message-in flex flex-col gap-1.5', isUser ? 'items-end' : 'items-start')}>
-      {showBubble && (
-        <div
-          className={cn(
-            'max-w-[88%] rounded-lg px-3 py-2 text-[13px] shadow-sm',
-            isUser
-              ? 'rounded-br-sm bg-primary text-primary-foreground whitespace-pre-wrap break-words'
-              : 'rounded-bl-sm border border-border bg-card',
-          )}
-        >
-          {showTyping ? (
-            <TypingDots />
-          ) : isUser ? (
-            message.text
-          ) : (
-            <div className="prose-chat prose prose-sm dark:prose-invert">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
-              {isStreaming && hasText && <span className="typing-cursor" />}
-            </div>
-          )}
+    <div className={cn('animate-enter flex flex-col gap-2', message.toolCalls.length > 0 && 'gap-1.5')}>
+      {showThinking && <ThinkingRow />}
+
+      {message.toolCalls.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {message.toolCalls.map((call) => (
+            <ToolCallCard key={call.id} call={call} />
+          ))}
         </div>
       )}
-      {message.toolCalls.map((call) => (
-        <ToolCallCard key={call.id} call={call} />
-      ))}
+
+      {hasText && (
+        <div className="md text-fg">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+          {isStreaming && <span className="stream-caret" />}
+        </div>
+      )}
+
       {message.error && (
-        <div className="w-full max-w-[88%] rounded-md border border-destructive-border bg-destructive-bg px-3 py-2 text-xs text-destructive">
+        <div className="rounded-md border border-negative-line bg-negative-soft px-2.5 py-1.5 text-[12px] text-negative">
           {message.error}
         </div>
       )}

@@ -18,17 +18,22 @@ export default function TabPicker() {
 
   if (!tab) return null;
 
+  let host = '';
+  try {
+    host = tab.url ? new URL(tab.url).host : '';
+  } catch {
+    host = '';
+  }
+
   return (
     <div
-      className="flex items-center gap-1.5 overflow-hidden border-b border-border bg-card px-3 py-1.5 text-[11px] text-muted-foreground"
+      className="flex h-7 shrink-0 items-center gap-1.5 overflow-hidden border-b border-line px-3 text-[11px] text-fg-tertiary"
       title={tab.url}
     >
-      {tab.favIconUrl ? (
-        <img className="size-3 shrink-0 rounded-xs" src={tab.favIconUrl} alt="" />
-      ) : (
-        <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
-      )}
-      <span className="truncate">{tab.title || tab.url}</span>
+      <span className="size-1 shrink-0 rounded-full bg-positive" />
+      {tab.favIconUrl && <img className="size-3 shrink-0 rounded-[2px]" src={tab.favIconUrl} alt="" />}
+      <span className="truncate text-fg-secondary">{host || tab.title}</span>
+      {host && <span className="truncate">{tab.title}</span>}
     </div>
   );
 }
