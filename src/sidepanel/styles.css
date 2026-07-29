@@ -1,0 +1,228 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.app-header h1 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.icon-button:hover {
+  background: #eee;
+}
+
+.chat-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-bubble {
+  max-width: 90%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-bubble.user {
+  align-self: flex-end;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.message-bubble.assistant {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+}
+
+.tool-call-card {
+  margin-top: 6px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #f5f5f7;
+  padding: 4px 8px;
+}
+
+.tool-call-card summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-call-card pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.status-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  color: #fff;
+}
+
+.status-badge.running {
+  background: #f59e0b;
+}
+
+.status-badge.done {
+  background: #10b981;
+}
+
+.status-badge.error {
+  background: #ef4444;
+}
+
+.composer {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.composer button {
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.composer button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.settings-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.settings-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-panel input,
+.settings-panel select {
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.settings-panel .save-button {
+  align-self: flex-start;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.settings-panel .hint {
+  font-size: 11px;
+  color: #666;
+  font-weight: normal;
+}
+
+.banner {
+  padding: 8px 12px;
+  font-size: 12px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+}
+
+.banner.error {
+  background: #fee2e2;
+  border-bottom-color: #fecaca;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1e1e1e;
+    color: #eee;
+  }
+  .app-header,
+  .message-bubble.assistant,
+  .composer {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+  }
+  .tool-call-card {
+    background: #262626;
+    border-color: #3a3a3a;
+  }
+  .settings-panel input,
+  .settings-panel select {
+    background: #2a2a2a;
+    color: #eee;
+    border-color: #3a3a3a;
+  }
+}
