@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
+import { Settings2, SendHorizontal, Sparkles } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
 import TabPicker from './components/TabPicker';
+import { Button } from './components/ui/button';
+import { Textarea } from './components/ui/textarea';
+import { cn } from './lib/utils';
 
 interface PendingPrompt {
   tabId: number;
@@ -44,22 +48,23 @@ export default function App() {
   if (loading) return null;
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="brand">
-          <span className="brand-mark" />
-          <h1>cdp-copilot</h1>
+    <div className="flex h-screen flex-col bg-background">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-blue-400 text-primary-foreground shadow-sm">
+            <Sparkles className="size-3.5" />
+          </span>
+          <h1 className="truncate text-[13px] font-semibold tracking-tight">cdp-copilot</h1>
         </div>
-        <button
-          className={`icon-button${showSettings ? ' active' : ''}`}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(showSettings && 'bg-primary-soft text-primary')}
           onClick={() => setShowSettings((s) => !s)}
           aria-label="Settings"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
+          <Settings2 className="size-4" />
+        </Button>
       </header>
 
       {showSettings ? (
@@ -72,8 +77,11 @@ export default function App() {
         <>
           <TabPicker />
           <ChatThread messages={messages} isStreaming={isStreaming} />
-          <form className="composer" onSubmit={handleSubmit}>
-            <textarea
+          <form
+            className="flex shrink-0 items-end gap-2 border-t border-border bg-card p-2.5"
+            onSubmit={handleSubmit}
+          >
+            <Textarea
               rows={2}
               value={input}
               placeholder="Ask me to read or automate this page…"
@@ -85,12 +93,9 @@ export default function App() {
                 }
               }}
             />
-            <button type="submit" disabled={isStreaming || !input.trim()} aria-label="Send">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
+            <Button type="submit" size="icon" disabled={isStreaming || !input.trim()} aria-label="Send">
+              <SendHorizontal className="size-4" />
+            </Button>
           </form>
         </>
       )}

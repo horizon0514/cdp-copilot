@@ -19,13 +19,16 @@ export default function TabPicker() {
   if (!tab) return null;
 
   return (
-    <div className="tab-picker" title={tab.url}>
+    <div
+      className="flex items-center gap-1.5 overflow-hidden border-b border-border bg-card px-3 py-1.5 text-[11px] text-muted-foreground"
+      title={tab.url}
+    >
       {tab.favIconUrl ? (
-        <img className="tab-favicon" src={tab.favIconUrl} alt="" />
+        <img className="size-3 shrink-0 rounded-xs" src={tab.favIconUrl} alt="" />
       ) : (
-        <span className="tab-favicon-placeholder" />
+        <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
       )}
-      <span className="tab-title">{tab.title || tab.url}</span>
+      <span className="truncate">{tab.title || tab.url}</span>
     </div>
   );
 }

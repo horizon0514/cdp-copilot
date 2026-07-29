@@ -1,5 +1,10 @@
 import { FormEvent, useState } from 'react';
 import { Settings, ProviderId, DEFAULT_MODELS } from '../../lib/storage/schema';
+import { Card, CardContent } from './ui/card';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const DEFAULT_HOST_ORIGINS = new Set(['https://api.openai.com', 'https://api.anthropic.com']);
 
@@ -48,52 +53,72 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
   };
 
   return (
-    <form className="settings-panel" onSubmit={handleSubmit}>
-      <div className="settings-header">
-        <h2>Settings</h2>
-      </div>
+    <form className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-4" onSubmit={handleSubmit}>
+      <h2 className="text-sm font-semibold">Settings</h2>
 
-      <div className="field-group">
-        <label>
-          Provider
-          <select value={provider} onChange={(e) => handleProviderChange(e.target.value as ProviderId)}>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="openai-compatible">OpenAI-compatible (custom base URL)</option>
-          </select>
-        </label>
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="provider">Provider</Label>
+            <Select value={provider} onValueChange={(v) => handleProviderChange(v as ProviderId)}>
+              <SelectTrigger id="provider">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
+                <SelectItem value="openai-compatible">OpenAI-compatible (custom base URL)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <label>
-          API key
-          <span className="hint">Stored locally in this browser profile only, never synced.</span>
-          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required />
-        </label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="apiKey">API key</Label>
+            <p className="text-[11px] font-normal text-muted-foreground">
+              Stored locally in this browser profile only, never synced.
+            </p>
+            <Input
+              id="apiKey"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              required
+            />
+          </div>
 
-        <label>
-          Model
-          <input type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
-        </label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="model">Model</Label>
+            <Input id="model" type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
+          </div>
 
-        <label>
-          Base URL {provider === 'openai-compatible' ? '' : '(optional override)'}
-          <span className="hint">
-            Custom endpoints (OpenRouter, Azure OpenAI, local Ollama, etc.) need an extra one-time permission
-            grant.
-          </span>
-          <input
-            type="url"
-            placeholder="https://..."
-            value={baseURL}
-            onChange={(e) => setBaseURL(e.target.value)}
-          />
-        </label>
-      </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="baseURL">
+              Base URL {provider === 'openai-compatible' ? '' : '(optional override)'}
+            </Label>
+            <p className="text-[11px] font-normal text-muted-foreground">
+              Custom endpoints (OpenRouter, Azure OpenAI, local Ollama, etc.) need an extra one-time permission
+              grant.
+            </p>
+            <Input
+              id="baseURL"
+              type="url"
+              placeholder="https://..."
+              value={baseURL}
+              onChange={(e) => setBaseURL(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      {error && <div className="banner error">{error}</div>}
+      {error && (
+        <div className="rounded-md border border-destructive-border bg-destructive-bg px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
 
-      <button className="save-button" type="submit" disabled={saving}>
+      <Button type="submit" disabled={saving} className="self-start">
         {saving ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </form>
   );
 }
