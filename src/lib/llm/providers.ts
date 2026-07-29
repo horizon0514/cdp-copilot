@@ -22,7 +22,12 @@ export function resolveModel(settings: Settings): LanguageModel {
         apiKey: settings.apiKey,
         baseURL: settings.baseURL,
       });
-      return openai(settings.model);
+      // The bare `openai(modelId)` call targets OpenAI's Responses API,
+      // which rejects a `system`-role message in `messages` (it wants a
+      // separate `instructions` field instead). Chat Completions is what
+      // both real OpenAI and virtually every third-party "OpenAI-compatible"
+      // server (Ollama, vLLM, OpenRouter, LiteLLM, ...) actually implement.
+      return openai.chat(settings.model);
     }
   }
 }
