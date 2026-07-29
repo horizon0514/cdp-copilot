@@ -19,8 +19,13 @@ export default function TabPicker() {
   if (!tab) return null;
 
   return (
-    <div title={tab.url} style={{ fontSize: 11, color: '#666', padding: '0 12px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {tab.title || tab.url}
+    <div className="tab-picker" title={tab.url}>
+      {tab.favIconUrl ? (
+        <img className="tab-favicon" src={tab.favIconUrl} alt="" />
+      ) : (
+        <span className="tab-favicon-placeholder" />
+      )}
+      <span className="tab-title">{tab.title || tab.url}</span>
     </div>
   );
 }

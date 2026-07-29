@@ -49,39 +49,45 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
 
   return (
     <form className="settings-panel" onSubmit={handleSubmit}>
-      <label>
-        Provider
-        <select value={provider} onChange={(e) => handleProviderChange(e.target.value as ProviderId)}>
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="openai-compatible">OpenAI-compatible (custom base URL)</option>
-        </select>
-      </label>
+      <div className="settings-header">
+        <h2>Settings</h2>
+      </div>
 
-      <label>
-        API key
-        <span className="hint">Stored locally in this browser profile only, never synced.</span>
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required />
-      </label>
+      <div className="field-group">
+        <label>
+          Provider
+          <select value={provider} onChange={(e) => handleProviderChange(e.target.value as ProviderId)}>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openai-compatible">OpenAI-compatible (custom base URL)</option>
+          </select>
+        </label>
 
-      <label>
-        Model
-        <input type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
-      </label>
+        <label>
+          API key
+          <span className="hint">Stored locally in this browser profile only, never synced.</span>
+          <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required />
+        </label>
 
-      <label>
-        Base URL {provider === 'openai-compatible' ? '' : '(optional override)'}
-        <span className="hint">
-          Custom endpoints (OpenRouter, Azure OpenAI, local Ollama, etc.) need an extra one-time permission
-          grant.
-        </span>
-        <input
-          type="url"
-          placeholder="https://..."
-          value={baseURL}
-          onChange={(e) => setBaseURL(e.target.value)}
-        />
-      </label>
+        <label>
+          Model
+          <input type="text" value={model} onChange={(e) => setModel(e.target.value)} required />
+        </label>
+
+        <label>
+          Base URL {provider === 'openai-compatible' ? '' : '(optional override)'}
+          <span className="hint">
+            Custom endpoints (OpenRouter, Azure OpenAI, local Ollama, etc.) need an extra one-time permission
+            grant.
+          </span>
+          <input
+            type="url"
+            placeholder="https://..."
+            value={baseURL}
+            onChange={(e) => setBaseURL(e.target.value)}
+          />
+        </label>
+      </div>
 
       {error && <div className="banner error">{error}</div>}
 
