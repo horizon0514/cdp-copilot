@@ -27,7 +27,16 @@ export default defineManifest({
     service_worker: 'src/background/index.ts',
     type: 'module',
   },
-  permissions: ['sidePanel', 'debugger', 'tabs', 'storage', 'activeTab', 'contextMenus'],
+  permissions: [
+    'sidePanel',
+    'debugger',
+    'tabs',
+    'storage',
+    'activeTab',
+    'contextMenus',
+    // Inject the screenshot lightbox onto the page tab (full viewport), not just the side panel.
+    'scripting',
+  ],
   // In E2E builds the wildcard hosts are pre-granted, because
   // chrome.permissions.request() raises a native dialog that Playwright cannot
   // dismiss. Normal builds keep them optional and ask at runtime.

@@ -2,10 +2,10 @@ import { useCallback } from 'react';
 import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
-import { ChatMessage } from '../../lib/llm/types';
 
 export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
+  const modelMessages = useConversationStore((s) => s.modelMessages);
   const isStreaming = useConversationStore((s) => s.isStreaming);
   const addUserMessage = useConversationStore((s) => s.addUserMessage);
   const startAssistantMessage = useConversationStore((s) => s.startAssistantMessage);
@@ -15,13 +15,16 @@ export function useAgentSession(settings: Settings | null) {
   const updateToolError = useConversationStore((s) => s.updateToolError);
   const setMessageError = useConversationStore((s) => s.setMessageError);
   const setMessageStop = useConversationStore((s) => s.setMessageStop);
+  const commitTurn = useConversationStore((s) => s.commitTurn);
   const setStreaming = useConversationStore((s) => s.setStreaming);
 
   const sendMessage = useCallback(
     async (text: string) => {
       if (!settings || !text.trim()) return;
 
-      const history: ChatMessage[] = messages.map((m) => ({ role: m.role, content: m.text }));
+      // Snapshot history before mutating display state — this is the faithful
+      // ModelMessage trail (tool calls/results included), not the UI text.
+      const history = modelMessages;
       addUserMessage(text);
       const assistantId = startAssistantMessage();
       setStreaming(true);
@@ -46,6 +49,7 @@ export function useAgentSession(settings: Settings | null) {
               break;
             case 'done':
               setMessageStop(assistantId, event.stop);
+              commitTurn(text, event.responseMessages);
               console.debug('[cdp-copilot] turn ended', event.stop);
               break;
           }
@@ -56,7 +60,7 @@ export function useAgentSession(settings: Settings | null) {
     },
     [
       settings,
-      messages,
+      modelMessages,
       addUserMessage,
       startAssistantMessage,
       appendAssistantText,
@@ -65,6 +69,7 @@ export function useAgentSession(settings: Settings | null) {
       updateToolError,
       setMessageError,
       setMessageStop,
+      commitTurn,
       setStreaming,
     ],
   );

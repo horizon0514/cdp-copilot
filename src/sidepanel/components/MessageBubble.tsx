@@ -1,8 +1,12 @@
+import { useDeferredValue } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
+import { stabilizeStreamingMarkdown } from '../lib/stabilizeStreamingMarkdown';
+import { imagesFromToolCalls } from '../lib/toolImages';
 import { DisplayMessage } from '../state/conversationStore';
-import ToolCallCard from './ToolCallCard';
+import ChatImages from './ChatImages';
+import ToolCallList from './ToolCallList';
 
 function ThinkingRow() {
   return (
@@ -47,6 +51,24 @@ function StopNote({
   );
 }
 
+/**
+ * Always render GFM. While streaming, close open fences so incomplete ```
+ * blocks don't thrash the layout, and defer the markdown parse so React can
+ * skip intermediate tokens under load.
+ */
+function AssistantText({ text, streaming }: { text: string; streaming: boolean }) {
+  const source = streaming ? stabilizeStreamingMarkdown(text) : text;
+  const deferred = useDeferredValue(source);
+  const rendered = streaming ? deferred : source;
+
+  return (
+    <div className="md text-fg">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{rendered}</ReactMarkdown>
+      {streaming && <span className="stream-caret" />}
+    </div>
+  );
+}
+
 export default function MessageBubble({
   message,
   isStreaming,
@@ -56,7 +78,9 @@ export default function MessageBubble({
 }) {
   const hasText = message.text.trim().length > 0;
   const isUser = message.role === 'user';
-  const showThinking = isStreaming && !isUser && !hasText && message.toolCalls.length === 0;
+  const chatImages = isUser ? [] : imagesFromToolCalls(message.toolCalls);
+  const showThinking =
+    isStreaming && !isUser && !hasText && message.toolCalls.length === 0 && chatImages.length === 0;
 
   if (isUser) {
     return (
@@ -72,20 +96,12 @@ export default function MessageBubble({
     <div className={cn('animate-enter flex flex-col gap-2', message.toolCalls.length > 0 && 'gap-1.5')}>
       {showThinking && <ThinkingRow />}
 
-      {message.toolCalls.length > 0 && (
-        <div className="flex flex-col gap-1">
-          {message.toolCalls.map((call) => (
-            <ToolCallCard key={call.id} call={call} />
-          ))}
-        </div>
-      )}
+      {message.toolCalls.length > 0 && <ToolCallList calls={message.toolCalls} />}
 
-      {hasText && (
-        <div className="md text-fg">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
-          {isStreaming && <span className="stream-caret" />}
-        </div>
-      )}
+      {/* Screenshots live in the transcript so they stay visible after tools collapse. */}
+      <ChatImages images={chatImages} label="Screenshot" />
+
+      {hasText && <AssistantText text={message.text} streaming={Boolean(isStreaming)} />}
 
       {message.error && (
         <div className="rounded-md border border-negative-line bg-negative-soft px-2.5 py-1.5 text-[12px] text-negative">

@@ -1,15 +1,26 @@
-import { streamText, stepCountIs, type ModelMessage, type LanguageModel, type ToolSet } from 'ai';
+import {
+  streamText,
+  stepCountIs,
+  type ModelMessage,
+  type LanguageModel,
+  type ToolSet,
+  type AssistantModelMessage,
+  type ToolModelMessage,
+} from 'ai';
 import { tools } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
-import { ChatMessage } from './types';
+import { sanitizeModelMessages } from './sanitizeMessages';
+
+/** Assistant + tool messages produced by a single streamText call. */
+export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
 
 export type AgentEvent =
   | { type: 'text-delta'; text: string }
   | { type: 'tool-call'; toolCallId: string; name: string; args: unknown }
   | { type: 'tool-result'; toolCallId: string; name: string; result: unknown }
   | { type: 'tool-error'; toolCallId: string; name: string; error: string }
-  | { type: 'done'; stop: StopInfo }
+  | { type: 'done'; stop: StopInfo; responseMessages: TurnResponseMessage[] }
   | { type: 'error'; message: string };
 
 /** Why the turn ended — without this there's no way to tell a model that chose
@@ -29,11 +40,8 @@ and retry rather than guessing.`;
 
 export const MAX_STEPS = 20;
 
-export function buildMessages(history: ChatMessage[], userMessage: string): ModelMessage[] {
-  return [
-    ...history.map((m) => ({ role: m.role, content: m.content }) as ModelMessage),
-    { role: 'user', content: userMessage },
-  ];
+export function buildMessages(history: ModelMessage[], userMessage: string): ModelMessage[] {
+  return [...history, { role: 'user', content: userMessage }];
 }
 
 export interface AgentStreamOptions {
@@ -89,10 +97,11 @@ export async function* streamAgentEvents(
       }
     }
 
-    const [finishReason, steps, usage] = await Promise.all([
+    const [finishReason, steps, usage, responseMessages] = await Promise.all([
       result.finishReason,
       result.steps,
       result.totalUsage,
+      result.responseMessages,
     ]);
     yield {
       type: 'done',
@@ -102,6 +111,8 @@ export async function* streamAgentEvents(
         hitStepLimit: steps.length >= maxSteps,
         totalTokens: usage?.totalTokens,
       },
+      // Drop screenshot payloads before they become next-turn context.
+      responseMessages: sanitizeModelMessages(responseMessages) as TurnResponseMessage[],
     };
   } catch (err) {
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
@@ -111,7 +122,7 @@ export async function* streamAgentEvents(
 /** Production entry point: resolve the configured provider, then run the loop. */
 export async function* runAgentTurn(
   settings: Settings,
-  history: ChatMessage[],
+  history: ModelMessage[],
   userMessage: string,
 ): AsyncGenerator<AgentEvent> {
   let model: LanguageModel;

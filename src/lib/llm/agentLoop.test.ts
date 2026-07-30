@@ -128,4 +128,57 @@ describe('buildMessages', () => {
     // AI SDK v7 rejects system messages here; the prompt goes via `instructions`.
     expect(messages.some((m) => m.role === 'system')).toBe(false);
   });
+
+  it('preserves tool-call / tool-result parts already in history', () => {
+    const history = [
+      { role: 'user' as const, content: 'click it' },
+      {
+        role: 'assistant' as const,
+        content: [
+          {
+            type: 'tool-call' as const,
+            toolCallId: 'c1',
+            toolName: 'okTool',
+            input: {},
+          },
+        ],
+      },
+      {
+        role: 'tool' as const,
+        content: [
+          {
+            type: 'tool-result' as const,
+            toolCallId: 'c1',
+            toolName: 'okTool',
+            output: { type: 'json' as const, value: { ok: true } },
+          },
+        ],
+      },
+      { role: 'assistant' as const, content: 'clicked' },
+    ];
+    const messages = buildMessages(history, 'now type');
+    expect(messages).toHaveLength(5);
+    expect(messages[1]).toMatchObject({ role: 'assistant' });
+    expect(messages[2]).toMatchObject({ role: 'tool' });
+    expect(messages[4]).toEqual({ role: 'user', content: 'now type' });
+  });
+});
+
+describe('streamAgentEvents — responseMessages for multi-turn history', () => {
+  it('returns responseMessages on done so the caller can persist a faithful history', async () => {
+    const { events } = await collect([
+      { do: 'tool', name: 'okTool' },
+      { do: 'text', text: 'all done' },
+    ]);
+    const done = events.find((e) => e.type === 'done');
+    expect(done?.type).toBe('done');
+    if (done?.type !== 'done') throw new Error('expected done');
+    expect(done.responseMessages.length).toBeGreaterThan(0);
+    const roles = done.responseMessages.map((m) => m.role);
+    expect(roles).toContain('assistant');
+    // Tool results land as role:'tool' (or nested in assistant, depending on SDK);
+    // either way the payload must retain a tool-call or tool-result part.
+    const serialized = JSON.stringify(done.responseMessages);
+    expect(serialized).toMatch(/tool-call|tool-result|okTool/);
+  });
 });

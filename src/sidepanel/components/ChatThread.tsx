@@ -48,11 +48,27 @@ export default function ChatThread({
   isStreaming: boolean;
   onPickSuggestion: (text: string) => void;
 }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
 
+  // Track whether the user has scrolled away; only auto-follow when near bottom.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottom.current = distance < 80;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [messages.length === 0]);
+
+  // Instant scroll while streaming (smooth-per-token feels jumpy); smooth only when settled.
+  useEffect(() => {
+    if (!stickToBottom.current) return;
+    bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'instant' : 'smooth' });
+  }, [messages, isStreaming]);
 
   if (messages.length === 0) {
     return (
@@ -63,7 +79,7 @@ export default function ChatThread({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-3 py-3.5">
+    <div ref={scrollerRef} className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-3 py-3.5">
       {messages.map((m, i) => (
         <MessageBubble key={m.id} message={m} isStreaming={isStreaming && i === messages.length - 1} />
       ))}

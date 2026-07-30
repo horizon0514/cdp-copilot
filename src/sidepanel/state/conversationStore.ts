@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { StopInfo } from '../../lib/llm/agentLoop';
+import type { ModelMessage } from 'ai';
+import type { StopInfo, TurnResponseMessage } from '../../lib/llm/agentLoop';
 
 export interface DisplayToolCall {
   id: string;
@@ -20,7 +21,14 @@ export interface DisplayMessage {
 }
 
 interface ConversationState {
+  /** Display transcript for the UI. */
   messages: DisplayMessage[];
+  /**
+   * Exact ModelMessages for the next LLM turn — includes tool-call / tool-result
+   * parts. Kept separately so the UI can stay lossy/pretty while the model gets
+   * a faithful history.
+   */
+  modelMessages: ModelMessage[];
   isStreaming: boolean;
   addUserMessage: (text: string) => void;
   startAssistantMessage: () => string;
@@ -30,6 +38,8 @@ interface ConversationState {
   updateToolError: (id: string, toolCallId: string, error: string) => void;
   setMessageError: (id: string, error: string) => void;
   setMessageStop: (id: string, stop: StopInfo) => void;
+  /** Append the user turn + SDK responseMessages to the model history. */
+  commitTurn: (userText: string, responseMessages: TurnResponseMessage[]) => void;
   setStreaming: (streaming: boolean) => void;
   reset: () => void;
 }
@@ -44,6 +54,7 @@ function updateMessage(
 
 export const useConversationStore = create<ConversationState>((set) => ({
   messages: [],
+  modelMessages: [],
   isStreaming: false,
 
   addUserMessage: (text) =>
@@ -98,7 +109,16 @@ export const useConversationStore = create<ConversationState>((set) => ({
       messages: updateMessage(state.messages, id, (m) => ({ ...m, stop })),
     })),
 
+  commitTurn: (userText, responseMessages) =>
+    set((state) => ({
+      modelMessages: [
+        ...state.modelMessages,
+        { role: 'user', content: userText },
+        ...responseMessages,
+      ],
+    })),
+
   setStreaming: (isStreaming) => set({ isStreaming }),
 
-  reset: () => set({ messages: [], isStreaming: false }),
+  reset: () => set({ messages: [], modelMessages: [], isStreaming: false }),
 }));

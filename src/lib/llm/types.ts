@@ -1,9 +1,9 @@
 export type { Settings as ProviderConfig } from '../storage/schema';
 
 /**
- * Conversation turns only. The system prompt is passed separately via
- * streamText's `instructions` option, so 'system' is deliberately not a
- * valid role here.
+ * @deprecated Prefer ModelMessage[] from the `ai` package. Kept only so older
+ * call sites / docs that mention ChatMessage still typecheck during the
+ * history-fidelity migration.
  */
 export interface ChatMessage {
   role: 'user' | 'assistant';
