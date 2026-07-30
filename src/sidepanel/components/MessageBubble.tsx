@@ -10,8 +10,8 @@ import ToolCallList from './ToolCallList';
 
 function ThinkingRow() {
   return (
-    <div className="flex items-center gap-1.5 text-[12px] text-fg-tertiary">
-      <span className="flex gap-[3px]">
+    <div className="flex items-center gap-1.5 text-[12px] text-fg-tertiary" aria-live="polite">
+      <span className="flex gap-[3px]" aria-hidden>
         <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:0ms]" />
         <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
         <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
@@ -85,7 +85,7 @@ export default function MessageBubble({
   if (isUser) {
     return (
       <div className="animate-enter flex justify-end">
-        <div className="max-w-[85%] rounded-lg border border-accent-line bg-accent-soft px-2.5 py-1.5 text-[13px] break-words whitespace-pre-wrap text-fg">
+        <div className="max-w-[85%] rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[13px] leading-[1.5] break-words whitespace-pre-wrap text-fg shadow-[0_1px_0_rgba(37,99,235,0.06)]">
           {message.text}
         </div>
       </div>
@@ -93,7 +93,10 @@ export default function MessageBubble({
   }
 
   return (
-    <div className={cn('animate-enter flex flex-col gap-2', message.toolCalls.length > 0 && 'gap-1.5')}>
+    <div
+      className={cn('animate-enter flex flex-col gap-2', message.toolCalls.length > 0 && 'gap-1.5')}
+      data-role="assistant"
+    >
       {showThinking && <ThinkingRow />}
 
       {message.toolCalls.length > 0 && <ToolCallList calls={message.toolCalls} />}
@@ -104,7 +107,10 @@ export default function MessageBubble({
       {hasText && <AssistantText text={message.text} streaming={Boolean(isStreaming)} />}
 
       {message.error && (
-        <div className="rounded-md border border-negative-line bg-negative-soft px-2.5 py-1.5 text-[12px] text-negative">
+        <div
+          role="alert"
+          className="rounded-lg border border-negative-line bg-negative-soft px-2.5 py-2 text-[12px] leading-[1.45] text-negative"
+        >
           {message.error}
         </div>
       )}

@@ -12,16 +12,17 @@ function ImageThumb({ src, alt }: { src: string; alt: string }) {
         onClick={() => {
           void openImageViewer(src, alt, () => setFallbackOpen(true));
         }}
-        className="block w-full overflow-hidden rounded-md border border-line bg-surface text-left outline-none transition-colors hover:border-line-strong focus-visible:ring-2 focus-visible:ring-accent-line"
+        className="group block w-full cursor-pointer overflow-hidden rounded-lg border border-line bg-surface text-left outline-none transition-[border-color,box-shadow] duration-200 hover:border-line-strong hover:shadow-sm focus-visible:ring-2 focus-visible:ring-accent-line"
         aria-label={`Open ${alt}`}
       >
         <img
           src={src}
           alt={alt}
-          className="max-h-56 w-full bg-black/20 object-contain object-left"
+          className="max-h-56 w-full bg-black/25 object-contain object-left"
         />
-        <div className="border-t border-line px-2 py-1 text-[10px] text-fg-tertiary">
-          Click to view on page
+        <div className="flex items-center justify-between border-t border-line px-2.5 py-1.5 text-[10.5px] text-fg-tertiary transition-colors duration-200 group-hover:text-fg-secondary">
+          <span>Click to view on page</span>
+          <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">Open ↗</span>
         </div>
       </button>
       {fallbackOpen && (

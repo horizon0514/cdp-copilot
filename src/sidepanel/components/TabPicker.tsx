@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
 import { sessionRegistry } from '../../lib/debugger-bridge/sessionRegistry';
 import { getBoundTabId } from '../../lib/tools/context';
+import { Badge } from './ui/badge';
 
 /**
  * Shows the tab the agent is bound to (attached / remembered), not whichever
@@ -55,16 +57,22 @@ export default function TabPicker() {
 
   return (
     <div
-      className="flex h-7 shrink-0 items-center gap-1.5 overflow-hidden border-b border-line px-3 text-[11px] text-fg-tertiary"
+      className="flex h-8 shrink-0 items-center gap-2 overflow-hidden border-b border-line bg-bg px-3 text-[11px]"
       title={tab.url}
     >
-      <span
-        className={`size-1 shrink-0 rounded-full ${bound ? 'bg-positive' : 'bg-fg-tertiary'}`}
-      />
-      {tab.favIconUrl && <img className="size-3 shrink-0 rounded-[2px]" src={tab.favIconUrl} alt="" />}
-      <span className="shrink-0 text-fg-tertiary">{bound ? 'Bound' : 'active'}</span>
-      <span className="truncate text-fg-secondary">{host || tab.title}</span>
-      {host && <span className="truncate">{tab.title}</span>}
+      <Badge variant={bound ? 'positive' : 'neutral'} className="shrink-0 gap-1">
+        <span className={`size-1.5 rounded-full ${bound ? 'bg-positive' : 'bg-fg-tertiary'}`} aria-hidden />
+        {bound ? 'Bound' : 'active'}
+      </Badge>
+      {tab.favIconUrl ? (
+        <img className="size-3.5 shrink-0 rounded-[3px]" src={tab.favIconUrl} alt="" />
+      ) : (
+        <Link2 className="size-3 shrink-0 text-fg-tertiary" aria-hidden />
+      )}
+      <span className="min-w-0 truncate font-medium text-fg-secondary">{host || tab.title}</span>
+      {host && tab.title && (
+        <span className="min-w-0 truncate text-fg-tertiary">{tab.title}</span>
+      )}
     </div>
   );
 }
