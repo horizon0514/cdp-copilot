@@ -5,6 +5,7 @@ import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
 import TabPicker from './components/TabPicker';
+import ThreadSwitcher from './components/ThreadSwitcher';
 import { Button } from './components/ui/button';
 import { Textarea } from './components/ui/textarea';
 import { cn } from './lib/utils';
@@ -24,10 +25,24 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { settings, loading, save } = useSettings();
-  const { messages, isStreaming, sendMessage } = useAgentSession(settings);
+  const {
+    messages,
+    isStreaming,
+    sendMessage,
+    threadId,
+    threadList,
+    hydrated,
+    hydrate,
+    newChat,
+    switchThread,
+  } = useAgentSession(settings);
   const [showSettings, setShowSettings] = useState(false);
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     if (!loading && !settings) setShowSettings(true);
@@ -59,18 +74,28 @@ export default function App() {
     inputRef.current?.focus();
   };
 
-  if (loading) return null;
+  if (loading || !hydrated) return null;
 
   const canSend = !isStreaming && input.trim().length > 0;
 
   return (
     <div className="flex h-screen flex-col bg-bg">
       <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="grid size-5 shrink-0 place-items-center rounded-[5px] bg-accent text-accent-fg">
             <Sparkle className="size-3" strokeWidth={2.5} />
           </span>
-          <h1 className="truncate text-[12.5px] font-medium tracking-[-0.015em]">cdp-copilot</h1>
+          <ThreadSwitcher
+            threadId={threadId}
+            threadList={threadList}
+            isStreaming={isStreaming}
+            onNewChat={() => {
+              void newChat();
+            }}
+            onSwitch={(id) => {
+              void switchThread(id);
+            }}
+          />
         </div>
         <Button
           variant="ghost"

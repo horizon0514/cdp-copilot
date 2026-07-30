@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { DisplayToolCall } from '../state/conversationStore';
-import { extractImages, redactImages } from '../lib/toolImages';
+import { extractImages, redactImages } from '../../lib/images/toolImages';
 import { openImageViewer } from '../lib/openImageViewer';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';

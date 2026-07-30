@@ -27,6 +27,7 @@ export function installChromeMock(): ChromeMock {
   const attachedTabs = new Set<number>();
   const foreignDebuggers = new Set<number>();
   const sessionStore: Record<string, unknown> = {};
+  const localStore: Record<string, unknown> = {};
   const eventListeners: Listener[] = [];
   const detachListeners: Listener[] = [];
 
@@ -163,6 +164,17 @@ export function installChromeMock(): ChromeMock {
         },
         async remove(key: string) {
           delete sessionStore[key];
+        },
+      },
+      local: {
+        async get(key: string) {
+          return key in localStore ? { [key]: localStore[key] } : {};
+        },
+        async set(items: Record<string, unknown>) {
+          Object.assign(localStore, items);
+        },
+        async remove(key: string) {
+          delete localStore[key];
         },
       },
     },

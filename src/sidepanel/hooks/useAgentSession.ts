@@ -9,6 +9,13 @@ export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
   const modelMessages = useConversationStore((s) => s.modelMessages);
   const isStreaming = useConversationStore((s) => s.isStreaming);
+  const threadId = useConversationStore((s) => s.threadId);
+  const threadList = useConversationStore((s) => s.threadList);
+  const hydrated = useConversationStore((s) => s.hydrated);
+  const hydrate = useConversationStore((s) => s.hydrate);
+  const persist = useConversationStore((s) => s.persist);
+  const newChat = useConversationStore((s) => s.newChat);
+  const switchThread = useConversationStore((s) => s.switchThread);
   const addUserMessage = useConversationStore((s) => s.addUserMessage);
   const startAssistantMessage = useConversationStore((s) => s.startAssistantMessage);
   const appendAssistantText = useConversationStore((s) => s.appendAssistantText);
@@ -68,6 +75,7 @@ export function useAgentSession(settings: Settings | null) {
       } finally {
         setStreaming(false);
         await agentTabTracker.cleanup();
+        await persist();
       }
     },
     [
@@ -83,8 +91,19 @@ export function useAgentSession(settings: Settings | null) {
       setMessageStop,
       commitTurn,
       setStreaming,
+      persist,
     ],
   );
 
-  return { messages, isStreaming, sendMessage };
+  return {
+    messages,
+    isStreaming,
+    sendMessage,
+    threadId,
+    threadList,
+    hydrated,
+    hydrate,
+    newChat,
+    switchThread,
+  };
 }

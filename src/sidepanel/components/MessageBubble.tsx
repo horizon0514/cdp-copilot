@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
 import { stabilizeStreamingMarkdown } from '../lib/stabilizeStreamingMarkdown';
-import { imagesFromToolCalls } from '../lib/toolImages';
+import { imagesFromToolCalls } from '../../lib/images/toolImages';
 import { DisplayMessage } from '../state/conversationStore';
 import ChatImages from './ChatImages';
 import ToolCallList from './ToolCallList';
