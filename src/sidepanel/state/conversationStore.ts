@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { StopInfo } from '../../lib/llm/agentLoop';
 
 export interface DisplayToolCall {
   id: string;
@@ -15,6 +16,7 @@ export interface DisplayMessage {
   text: string;
   toolCalls: DisplayToolCall[];
   error?: string;
+  stop?: StopInfo;
 }
 
 interface ConversationState {
@@ -27,6 +29,7 @@ interface ConversationState {
   updateToolResult: (id: string, toolCallId: string, result: unknown) => void;
   updateToolError: (id: string, toolCallId: string, error: string) => void;
   setMessageError: (id: string, error: string) => void;
+  setMessageStop: (id: string, stop: StopInfo) => void;
   setStreaming: (streaming: boolean) => void;
   reset: () => void;
 }
@@ -88,6 +91,11 @@ export const useConversationStore = create<ConversationState>((set) => ({
   setMessageError: (id, error) =>
     set((state) => ({
       messages: updateMessage(state.messages, id, (m) => ({ ...m, error })),
+    })),
+
+  setMessageStop: (id, stop) =>
+    set((state) => ({
+      messages: updateMessage(state.messages, id, (m) => ({ ...m, stop })),
     })),
 
   setStreaming: (isStreaming) => set({ isStreaming }),

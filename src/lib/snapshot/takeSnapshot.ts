@@ -8,6 +8,7 @@ export interface SnapshotResult {
   text: string;
   uidCount: number;
   truncated: boolean;
+  chars: number;
 }
 
 interface GetFullAXTreeResult {
@@ -22,7 +23,7 @@ export async function takeSnapshot(session: DebuggerSession): Promise<SnapshotRe
   const { nodes } = await session.send<GetFullAXTreeResult>('Accessibility.getFullAXTree');
 
   const { snapshotId, register } = beginSnapshot(tabId);
-  const { text, uidCount, truncated } = formatSnapshot(nodes, register);
+  const { text, uidCount, truncated, chars } = formatSnapshot(nodes, register);
 
-  return { snapshotId, tabId, text, uidCount, truncated };
+  return { snapshotId, tabId, text, uidCount, truncated, chars };
 }

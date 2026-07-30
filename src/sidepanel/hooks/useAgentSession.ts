@@ -14,6 +14,7 @@ export function useAgentSession(settings: Settings | null) {
   const updateToolResult = useConversationStore((s) => s.updateToolResult);
   const updateToolError = useConversationStore((s) => s.updateToolError);
   const setMessageError = useConversationStore((s) => s.setMessageError);
+  const setMessageStop = useConversationStore((s) => s.setMessageStop);
   const setStreaming = useConversationStore((s) => s.setStreaming);
 
   const sendMessage = useCallback(
@@ -44,6 +45,8 @@ export function useAgentSession(settings: Settings | null) {
               setMessageError(assistantId, event.message);
               break;
             case 'done':
+              setMessageStop(assistantId, event.stop);
+              console.debug('[cdp-copilot] turn ended', event.stop);
               break;
           }
         }
@@ -61,6 +64,7 @@ export function useAgentSession(settings: Settings | null) {
       updateToolResult,
       updateToolError,
       setMessageError,
+      setMessageStop,
       setStreaming,
     ],
   );

@@ -9,8 +9,17 @@ export type AgentEvent =
   | { type: 'tool-call'; toolCallId: string; name: string; args: unknown }
   | { type: 'tool-result'; toolCallId: string; name: string; result: unknown }
   | { type: 'tool-error'; toolCallId: string; name: string; error: string }
-  | { type: 'done' }
+  | { type: 'done'; stop: StopInfo }
   | { type: 'error'; message: string };
+
+/** Why the turn ended — without this there's no way to tell a model that chose
+ * to stop from a step-limit cutoff, a truncated response, or a provider error. */
+export interface StopInfo {
+  finishReason: string;
+  steps: number;
+  hitStepLimit: boolean;
+  totalTokens?: number;
+}
 
 const SYSTEM_PROMPT = `You are cdp-copilot, a browser copilot with tools to read and automate the current Chrome tab
 via the Chrome DevTools Protocol. Always call take_snapshot before clicking/filling elements you haven't
@@ -69,7 +78,21 @@ export async function* runAgentTurn(
           break;
       }
     }
-    yield { type: 'done' };
+
+    const [finishReason, steps, usage] = await Promise.all([
+      result.finishReason,
+      result.steps,
+      result.totalUsage,
+    ]);
+    yield {
+      type: 'done',
+      stop: {
+        finishReason,
+        steps: steps.length,
+        hitStepLimit: steps.length >= MAX_STEPS,
+        totalTokens: usage?.totalTokens,
+      },
+    };
   } catch (err) {
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
   }

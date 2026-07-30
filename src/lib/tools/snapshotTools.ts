@@ -16,6 +16,7 @@ export const take_snapshot = tool({
       snapshot: result.text,
       uidCount: result.uidCount,
       truncated: result.truncated,
+      chars: result.chars,
     };
   },
 });

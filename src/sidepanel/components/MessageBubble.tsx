@@ -17,6 +17,36 @@ function ThinkingRow() {
   );
 }
 
+/** Only shown when the turn ended for a reason the user wouldn't infer from the
+ * transcript — a clean 'stop' with a real answer needs no explanation. */
+function StopNote({
+  stop,
+  hasText,
+}: {
+  stop: NonNullable<DisplayMessage['stop']>;
+  hasText: boolean;
+}) {
+  const reason = stop.hitStepLimit
+    ? `Hit the ${stop.steps}-step limit — the model was still working. Ask it to continue, or narrow the task.`
+    : stop.finishReason === 'length'
+      ? 'The model hit its output token limit mid-response.'
+      : stop.finishReason === 'content-filter'
+        ? 'The provider blocked the response (content filter).'
+        : !hasText
+          ? 'The model ran tools but returned no answer. Often means the context filled up — try a narrower ask.'
+          : `Model stopped early (finishReason: ${stop.finishReason}).`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-fg-tertiary">
+      <span className="text-caution">{reason}</span>
+      <span className="tabular-nums">
+        {stop.steps} step{stop.steps === 1 ? '' : 's'}
+        {stop.totalTokens != null && ` · ${stop.totalTokens.toLocaleString()} tokens`}
+      </span>
+    </div>
+  );
+}
+
 export default function MessageBubble({
   message,
   isStreaming,
@@ -62,6 +92,12 @@ export default function MessageBubble({
           {message.error}
         </div>
       )}
+
+      {message.stop &&
+        !isStreaming &&
+        (message.stop.hitStepLimit || message.stop.finishReason !== 'stop' || !hasText) && (
+          <StopNote stop={message.stop} hasText={hasText} />
+        )}
     </div>
   );
 }
