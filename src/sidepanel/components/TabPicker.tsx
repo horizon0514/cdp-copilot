@@ -18,9 +18,22 @@ export default function TabPicker() {
 
   if (!tab) return null;
 
+  let host = '';
+  try {
+    host = tab.url ? new URL(tab.url).host : '';
+  } catch {
+    host = '';
+  }
+
   return (
-    <div title={tab.url} style={{ fontSize: 11, color: '#666', padding: '0 12px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-      {tab.title || tab.url}
+    <div
+      className="flex h-7 shrink-0 items-center gap-1.5 overflow-hidden border-b border-line px-3 text-[11px] text-fg-tertiary"
+      title={tab.url}
+    >
+      <span className="size-1 shrink-0 rounded-full bg-positive" />
+      {tab.favIconUrl && <img className="size-3 shrink-0 rounded-[2px]" src={tab.favIconUrl} alt="" />}
+      <span className="truncate text-fg-secondary">{host || tab.title}</span>
+      {host && <span className="truncate">{tab.title}</span>}
     </div>
   );
 }
