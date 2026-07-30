@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
+import { agentTabTracker } from '../../lib/pages/agentTabTracker';
+import { getBoundTabId, ensureSession } from '../../lib/tools/context';
 
 export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
@@ -28,6 +30,15 @@ export function useAgentSession(settings: Settings | null) {
       addUserMessage(text);
       const assistantId = startAssistantMessage();
       setStreaming(true);
+
+      // Bind the turn to the current session tab (or active tab on first use)
+      // and track any tabs new_page opens for cleanup when the turn ends.
+      try {
+        const session = await ensureSession();
+        agentTabTracker.beginTurn(session.getTabId());
+      } catch {
+        agentTabTracker.beginTurn(getBoundTabId());
+      }
 
       try {
         for await (const event of runAgentTurn(settings, history, text)) {
@@ -56,6 +67,7 @@ export function useAgentSession(settings: Settings | null) {
         }
       } finally {
         setStreaming(false);
+        await agentTabTracker.cleanup();
       }
     },
     [

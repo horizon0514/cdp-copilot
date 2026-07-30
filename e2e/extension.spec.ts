@@ -11,7 +11,7 @@ test('loads with a registered service worker and the expected manifest', async (
   const manifest = await panel.evaluate(() => chrome.runtime.getManifest());
   expect(manifest.manifest_version).toBe(3);
   expect(manifest.permissions).toEqual(
-    expect.arrayContaining(['sidePanel', 'debugger', 'tabs', 'storage']),
+    expect.arrayContaining(['sidePanel', 'debugger', 'tabs', 'storage', 'scripting']),
   );
   expect(manifest.side_panel?.default_path).toContain('sidepanel');
 });

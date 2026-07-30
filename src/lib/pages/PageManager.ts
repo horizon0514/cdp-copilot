@@ -1,5 +1,7 @@
 import { DebuggerSession } from '../debugger-bridge/DebuggerSession';
 import { sessionRegistry } from '../debugger-bridge/sessionRegistry';
+import { agentTabTracker } from './agentTabTracker';
+import { setBoundTabId } from '../tools/context';
 
 export interface PageInfo {
   pageId: number;
@@ -53,6 +55,7 @@ export async function newPage(
 ): Promise<PageInfo> {
   const tab = await chrome.tabs.create({ url, active: !opts.background });
   if (tab.id === undefined) throw new Error('Failed to create tab');
+  agentTabTracker.trackCreated(tab.id);
   await waitForTabComplete(tab.id, opts.timeout);
   const fresh = await chrome.tabs.get(tab.id);
   const info = toPageInfo(fresh);
@@ -67,10 +70,14 @@ export async function selectPage(
   if (opts.bringToFront) {
     await chrome.tabs.update(pageId, { active: true });
   }
+  // Explicit user/model choice — rebind, but do NOT mark for auto-cleanup.
+  setBoundTabId(pageId);
   return sessionRegistry.attach(pageId);
 }
 
 export async function closePage(pageId: number): Promise<void> {
+  agentTabTracker.untrack(pageId);
+
   const attached = sessionRegistry.getAttached();
   if (attached?.getTabId() === pageId) {
     await sessionRegistry.detach();

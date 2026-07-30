@@ -1,6 +1,7 @@
-// Intentionally thin: no debugger calls, no agent state, no message relaying.
-// The side panel document is the brain (see src/sidepanel) — this file only
-// wires up install-time setup and the context-menu -> side panel handoff.
+// Intentionally thin: no agent state, no tool execution.
+// The side panel document is the brain (see src/sidepanel). This file wires
+// install-time setup, the context-menu handoff, and reliable debugger detach
+// when the side panel closes (pagehide alone is best-effort during teardown).
 
 interface PendingPrompt {
   tabId: number;
@@ -32,5 +33,24 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
   void chrome.storage.session.set({ pendingPrompt: pending }).then(() => {
     void chrome.sidePanel.open({ tabId: tab.id! });
+  });
+});
+
+/**
+ * Side panel opens a long-lived port on load. When the panel is closed the port
+ * disconnects and we detach every debugger target this extension still holds —
+ * that's what clears Chrome's "cdp-copilot is debugging this browser" banner.
+ */
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'cdp-copilot-sidepanel') return;
+
+  port.onDisconnect.addListener(() => {
+    void chrome.debugger.getTargets().then((targets) => {
+      for (const target of targets) {
+        if (!target.attached || target.tabId == null) continue;
+        // detach only succeeds for attachments we own; foreign (DevTools) ones throw.
+        void chrome.debugger.detach({ tabId: target.tabId }).catch(() => {});
+      }
+    });
   });
 });

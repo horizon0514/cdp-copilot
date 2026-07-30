@@ -89,32 +89,62 @@ export function installChromeMock(): ChromeMock {
           if (i >= 0) detachListeners.splice(i, 1);
         },
       },
+      async getTargets() {
+        return [...attachedTabs].map((tabId) => ({
+          tabId,
+          attached: true,
+          type: 'page',
+        }));
+      },
     },
 
     tabs: {
       async get(id: number) {
         const tab = tabs.get(id);
         if (!tab) throw new Error(`No tab with id: ${id}`);
-        return tab;
+        return { ...tab, status: 'complete' as const };
       },
-      async query(info: { active?: boolean }) {
+      async query(info?: { active?: boolean; windowType?: string }) {
         const all = [...tabs.values()];
-        return info?.active ? all.filter((t) => t.active) : all;
+        if (info?.active) return all.filter((t) => t.active);
+        return all;
       },
       async create({ url, active }: { url: string; active?: boolean }) {
         const id = Math.max(0, ...tabs.keys()) + 1;
+        // Creating an active tab deactivates the others (matches Chrome).
+        if (active !== false) {
+          for (const t of tabs.values()) t.active = false;
+        }
         tabs.set(id, { id, url, active: active ?? true });
         return { id, url, active: active ?? true, status: 'complete' };
       },
-      async remove(id: number) {
-        tabs.delete(id);
+      async remove(id: number | number[]) {
+        for (const tabId of Array.isArray(id) ? id : [id]) {
+          tabs.delete(tabId);
+          attachedTabs.delete(tabId);
+        }
       },
       async update(id: number, props: { active?: boolean }) {
         const tab = tabs.get(id);
-        if (tab && props.active !== undefined) tab.active = props.active;
+        if (tab && props.active !== undefined) {
+          if (props.active) {
+            for (const t of tabs.values()) t.active = false;
+          }
+          tab.active = props.active;
+        }
         return tab;
       },
       onUpdated: { addListener: () => {}, removeListener: () => {} },
+      onActivated: { addListener: () => {}, removeListener: () => {} },
+      onRemoved: { addListener: () => {}, removeListener: () => {} },
+    },
+
+    runtime: {
+      connect: () => ({
+        name: 'cdp-copilot-sidepanel',
+        onDisconnect: { addListener: () => {}, removeListener: () => {} },
+        disconnect: () => {},
+      }),
     },
 
     windows: {
