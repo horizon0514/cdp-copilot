@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Settings2, Sparkle } from 'lucide-react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { ArrowUp, Settings2, Sparkles } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
-import ChatThread from './components/ChatThread';
+import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
 import TabPicker from './components/TabPicker';
 import ThreadSwitcher from './components/ThreadSwitcher';
@@ -17,9 +17,109 @@ interface PendingPrompt {
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded-xs border border-line bg-surface px-1 font-sans text-[9.5px] leading-[14px] text-fg-tertiary">
+    <kbd className="rounded-xs border border-line bg-bg px-1 font-sans text-[9.5px] leading-[14px] text-fg-tertiary">
       {children}
     </kbd>
+  );
+}
+
+function BootSkeleton() {
+  return (
+    <div className="flex h-screen flex-col bg-bg" aria-busy="true" aria-label="Loading">
+      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3">
+        <div className="skeleton size-5" />
+        <div className="skeleton h-3.5 w-28" />
+        <div className="skeleton ml-auto size-6" />
+      </header>
+      <div className="flex h-7 items-center gap-2 border-b border-line px-3">
+        <div className="skeleton size-1.5 rounded-full" />
+        <div className="skeleton h-2.5 w-40" />
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-3">
+        <div className="skeleton h-16 w-[70%]" />
+        <div className="skeleton h-[72px] w-full max-w-[320px] rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+function Composer({
+  input,
+  setInput,
+  inputRef,
+  isStreaming,
+  canSend,
+  onSubmit,
+}: {
+  input: string;
+  setInput: (v: string) => void;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  isStreaming: boolean;
+  canSend: boolean;
+  onSubmit: (e: FormEvent) => void;
+}) {
+  return (
+    <form className="w-full" onSubmit={onSubmit}>
+      <div
+        className={cn(
+          'rounded-2xl border border-line bg-surface/95 px-3 pt-2.5 pb-2 shadow-[var(--shadow-popover)] backdrop-blur-md transition-[border-color,box-shadow] duration-200',
+          'focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-line',
+          isStreaming && 'opacity-95',
+        )}
+      >
+        <label htmlFor="composer-input" className="sr-only">
+          Message
+        </label>
+        <Textarea
+          id="composer-input"
+          ref={inputRef}
+          rows={1}
+          value={input}
+          disabled={isStreaming}
+          placeholder={isStreaming ? 'Working on this page…' : 'Ask anything about this page…'}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (!input.trim() || isStreaming) return;
+              // Submit via form requestSubmit so the form onSubmit path stays consistent.
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+          className="min-h-[44px] max-h-40 overflow-y-auto"
+        />
+        <div className="flex items-center justify-between gap-2 pt-1.5">
+          <span className="flex min-w-0 items-center gap-1 text-[10px] text-fg-tertiary select-none">
+            {isStreaming ? (
+              <span className="flex items-center gap-1.5 text-caution">
+                <span className="flex gap-[3px]" aria-hidden>
+                  <span className="animate-pulse-dot size-1 rounded-full bg-current" />
+                  <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
+                  <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
+                </span>
+                Agent running
+              </span>
+            ) : (
+              <>
+                <Kbd>↵</Kbd> send
+                <span className="mx-0.5 text-line-strong">·</span>
+                <Kbd>⇧↵</Kbd> newline
+              </>
+            )}
+          </span>
+          <Button
+            type="submit"
+            size="icon-sm"
+            variant={canSend ? 'default' : 'subtle'}
+            disabled={!canSend}
+            aria-label="Send"
+            className={cn(canSend && 'shadow-sm')}
+          >
+            <ArrowUp className="size-3.5" strokeWidth={2.5} />
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }
 
@@ -58,13 +158,20 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = '0px';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input, messages.length === 0]);
+
   const submit = () => {
     if (!input.trim() || isStreaming) return;
     void sendMessage(input);
     setInput('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     submit();
   };
@@ -74,35 +181,39 @@ export default function App() {
     inputRef.current?.focus();
   };
 
-  if (loading || !hydrated) return null;
+  if (loading || !hydrated) return <BootSkeleton />;
 
   const canSend = !isStreaming && input.trim().length > 0;
+  const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-screen flex-col bg-bg">
-      <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="grid size-5 shrink-0 place-items-center rounded-[5px] bg-accent text-accent-fg">
-            <Sparkle className="size-3" strokeWidth={2.5} />
-          </span>
-          <ThreadSwitcher
-            threadId={threadId}
-            threadList={threadList}
-            isStreaming={isStreaming}
-            onNewChat={() => {
-              void newChat();
-            }}
-            onSwitch={(id) => {
-              void switchThread(id);
-            }}
-          />
-        </div>
+    <div className="relative flex h-screen flex-col overflow-hidden bg-bg" data-app-shell>
+      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur-sm">
+        <span
+          className="grid size-5 shrink-0 place-items-center rounded-[5px] bg-accent text-accent-fg shadow-[0_0_0_1px_rgba(37,99,235,0.25)]"
+          aria-hidden
+        >
+          <Sparkles className="size-3" strokeWidth={2.5} />
+        </span>
+        <ThreadSwitcher
+          threadId={threadId}
+          threadList={threadList}
+          isStreaming={isStreaming}
+          blocked={showSettings}
+          onNewChat={() => {
+            void newChat();
+          }}
+          onSwitch={(id) => {
+            void switchThread(id);
+          }}
+        />
         <Button
           variant="ghost"
           size="icon-sm"
           className={cn(showSettings && 'bg-surface-active text-fg')}
           onClick={() => setShowSettings((s) => !s)}
           aria-label="Settings"
+          aria-pressed={showSettings}
         >
           <Settings2 className="size-3.5" />
         </Button>
@@ -113,41 +224,39 @@ export default function App() {
       ) : (
         <>
           <TabPicker />
-          <ChatThread messages={messages} isStreaming={isStreaming} onPickSuggestion={pickSuggestion} />
 
-          <form className="shrink-0 border-t border-line p-2.5" onSubmit={handleSubmit}>
-            <div className="rounded-lg border border-line bg-surface px-2.5 pt-2 pb-1.5 transition-colors duration-100 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-line">
-              <Textarea
-                ref={inputRef}
-                rows={2}
-                value={input}
-                placeholder="Ask anything about this page…"
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    submit();
-                  }
-                }}
-              />
-              <div className="flex items-center justify-between pt-1">
-                <span className="flex items-center gap-1 text-[10px] text-fg-tertiary select-none">
-                  <Kbd>↵</Kbd> send
-                  <span className="mx-0.5 text-line-strong">·</span>
-                  <Kbd>⇧↵</Kbd> newline
-                </span>
-                <Button
-                  type="submit"
-                  size="icon-sm"
-                  variant={canSend ? 'default' : 'subtle'}
-                  disabled={!canSend}
-                  aria-label="Send"
-                >
-                  <ArrowUp className="size-3.5" strokeWidth={2.5} />
-                </Button>
+          {isEmpty ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-3 py-6">
+              <EmptyIntro />
+              <div className="w-full">
+                <Composer
+                  input={input}
+                  setInput={setInput}
+                  inputRef={inputRef}
+                  isStreaming={isStreaming}
+                  canSend={canSend}
+                  onSubmit={handleSubmit}
+                />
+              </div>
+              <EmptySuggestions onPick={pickSuggestion} />
+            </div>
+          ) : (
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <ChatThread messages={messages} isStreaming={isStreaming} />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-bg from-40% via-bg/85 to-transparent px-3 pt-10 pb-3">
+                <div className="pointer-events-auto w-full">
+                  <Composer
+                    input={input}
+                    setInput={setInput}
+                    inputRef={inputRef}
+                    isStreaming={isStreaming}
+                    canSend={canSend}
+                    onSubmit={handleSubmit}
+                  />
+                </div>
               </div>
             </div>
-          </form>
+          )}
         </>
       )}
     </div>

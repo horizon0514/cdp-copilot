@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { DisplayToolCall } from '../state/conversationStore';
 import { extractImages, redactImages } from '../../lib/images/toolImages';
@@ -6,6 +6,9 @@ import { openImageViewer } from '../lib/openImageViewer';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 import ImageLightbox from './ImageLightbox';
+
+/** Collapse a just-finished tool after a short beat so the result is glanceable. */
+export const TOOL_COLLAPSE_DELAY_MS = 650;
 
 function stringify(value: unknown): string {
   try {
@@ -37,38 +40,54 @@ function Block({ label, body, tone }: { label: string; body: string; tone?: 'neg
   );
 }
 
-export default function ToolCallCard({
-  call,
-  defaultOpen,
-}: {
-  call: DisplayToolCall;
-  /** Override open state. Running/error default open; done defaults closed. */
-  defaultOpen?: boolean;
-}) {
+export default function ToolCallCard({ call }: { call: DisplayToolCall }) {
   const status = STATUS[call.status];
-  const initiallyOpen = defaultOpen ?? call.status !== 'done';
-  const [open, setOpen] = useState(initiallyOpen);
+  const [open, setOpen] = useState(call.status !== 'done');
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const userToggled = useRef(false);
+  const prevStatus = useRef(call.status);
   const images = call.status === 'done' ? extractImages(call.result) : [];
 
-  // Running → done should collapse; failures stay open. defaultOpen wins when set.
+  // Auto open/close from status only when the user hasn't taken over.
   useEffect(() => {
-    if (defaultOpen != null) {
-      setOpen(defaultOpen);
+    const prev = prevStatus.current;
+    prevStatus.current = call.status;
+
+    if (userToggled.current) return;
+
+    if (call.status === 'running' || call.status === 'error') {
+      setOpen(true);
       return;
     }
-    setOpen(call.status !== 'done');
-  }, [call.status, defaultOpen]);
+
+    // running/error → done: keep open briefly, then fold.
+    if (call.status === 'done' && prev !== 'done') {
+      setOpen(true);
+      const timer = setTimeout(() => {
+        if (!userToggled.current) setOpen(false);
+      }, TOOL_COLLAPSE_DELAY_MS);
+      return () => clearTimeout(timer);
+    }
+
+    if (call.status === 'done' && prev === 'done') {
+      // Already done on mount (e.g. hydrated history) — stay collapsed.
+      setOpen(false);
+    }
+  }, [call.status]);
 
   return (
     <>
       <details
-        className="group w-full overflow-hidden rounded-md border border-line bg-surface"
+        className="group w-full overflow-hidden rounded-lg border border-line bg-surface"
         open={open}
-        onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+        onToggle={(e) => {
+          if (e.target !== e.currentTarget) return;
+          userToggled.current = true;
+          setOpen((e.currentTarget as HTMLDetailsElement).open);
+        }}
       >
-        <summary className="flex h-7 cursor-pointer list-none items-center gap-1.5 px-2 select-none hover:bg-surface-hover">
-          <ChevronRight className="size-3 shrink-0 text-fg-tertiary transition-transform duration-100 group-open:rotate-90" />
+        <summary className="flex h-7 cursor-pointer list-none items-center gap-1.5 px-2 select-none transition-colors duration-150 hover:bg-surface-hover">
+          <ChevronRight className="size-3 shrink-0 text-fg-tertiary transition-transform duration-200 group-open:rotate-90" />
           <code className="truncate font-mono text-[11.5px] text-fg-secondary group-hover:text-fg">
             {call.name}
           </code>
@@ -119,11 +138,7 @@ export default function ToolCallCard({
         </div>
       </details>
       {lightboxSrc && (
-        <ImageLightbox
-          src={lightboxSrc}
-          alt={call.name}
-          onClose={() => setLightboxSrc(null)}
-        />
+        <ImageLightbox src={lightboxSrc} alt={call.name} onClose={() => setLightboxSrc(null)} />
       )}
     </>
   );

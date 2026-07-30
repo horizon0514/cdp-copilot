@@ -120,7 +120,10 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
       </div>
 
       {error && (
-        <div className="rounded-md border border-negative-line bg-negative-soft px-2.5 py-1.5 text-[11.5px] leading-[1.45] text-negative">
+        <div
+          role="alert"
+          className="rounded-lg border border-negative-line bg-negative-soft px-2.5 py-2 text-[11.5px] leading-[1.45] text-negative"
+        >
           {error}
         </div>
       )}
