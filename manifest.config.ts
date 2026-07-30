@@ -1,6 +1,8 @@
 import { defineManifest } from '@crxjs/vite-plugin';
 import pkg from './package.json';
 
+const IS_E2E = process.env.VITE_E2E === 'true';
+
 export default defineManifest({
   manifest_version: 3,
   name: 'cdp-copilot',
@@ -26,7 +28,14 @@ export default defineManifest({
     type: 'module',
   },
   permissions: ['sidePanel', 'debugger', 'tabs', 'storage', 'activeTab', 'contextMenus'],
-  optional_host_permissions: ['https://*/*', 'http://localhost/*'],
-  host_permissions: ['https://api.openai.com/*', 'https://api.anthropic.com/*'],
+  // In E2E builds the wildcard hosts are pre-granted, because
+  // chrome.permissions.request() raises a native dialog that Playwright cannot
+  // dismiss. Normal builds keep them optional and ask at runtime.
+  ...(IS_E2E
+    ? { host_permissions: ['https://*/*', 'http://localhost/*'] }
+    : {
+        optional_host_permissions: ['https://*/*', 'http://localhost/*'],
+        host_permissions: ['https://api.openai.com/*', 'https://api.anthropic.com/*'],
+      }),
   minimum_chrome_version: '116',
 });

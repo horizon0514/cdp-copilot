@@ -121,6 +121,30 @@ prepending instead of replacing (synthetic Ctrl/Cmd+A does not trigger
 select-all; CDP's `commands: ['selectAll']` does), and `parseKeyCombo('+')`
 throwing.
 
-What still needs a manual pass: provider HTTP calls (no real LLM is exercised),
-the side panel opening as an actual Chrome side panel rather than a tab, and the
-debugger permission banner.
+#### Live-LLM E2E (optional)
+
+One spec (`e2e/live-llm.spec.ts`) runs the whole stack for real — a live model
+chooses the tools, the tool layer executes them over CDP, and the fixture page
+actually changes. It **skips by default**; to enable it:
+
+```bash
+cp .env.example .env.local   # then paste your key
+npm run build:e2e && npm run test:e2e
+```
+
+`.env.local` is gitignored, and the key name is deliberately **not**
+`VITE_`-prefixed — Vite only exposes `VITE_*` to the client bundle, so the key
+stays on the Node side and is written into `chrome.storage.local` at test time
+rather than compiled in. This was verified with a canary value: it appears in
+neither the E2E nor the production bundle.
+
+Because a live model is non-deterministic, these assert observable effects (a
+tool call happened; `#counter` really reads "Clicked 1 times") rather than exact
+wording. They cost tokens and need network, so they stay out of CI.
+
+Note that E2E builds pre-grant wildcard `host_permissions`, since
+`chrome.permissions.request()` opens a native dialog Playwright cannot dismiss.
+Production builds keep those optional and ask at runtime.
+
+What still needs a manual pass: the side panel opening as an actual Chrome side
+panel rather than a tab, and the debugger permission banner.

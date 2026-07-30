@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test';
+import { loadLocalEnv } from './e2e/env';
+
+loadLocalEnv();
 
 const PORT = Number(process.env.E2E_PORT ?? 5599);
 
