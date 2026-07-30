@@ -26,7 +26,6 @@ export async function* runAgentTurn(
   userMessage: string,
 ): AsyncGenerator<AgentEvent> {
   const messages: ModelMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
     ...history.map((m) => ({ role: m.role, content: m.content }) as ModelMessage),
     { role: 'user', content: userMessage },
   ];
@@ -35,6 +34,10 @@ export async function* runAgentTurn(
     const model = resolveModel(settings);
     const result = streamText({
       model,
+      // AI SDK v7 rejects `role: 'system'` entries inside `messages`
+      // (allowSystemInMessages defaults to false) — the system prompt has to
+      // come through this top-level option instead.
+      instructions: SYSTEM_PROMPT,
       messages,
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
