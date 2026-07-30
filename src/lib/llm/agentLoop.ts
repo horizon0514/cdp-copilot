@@ -1,4 +1,4 @@
-import { streamText, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, stepCountIs, type ModelMessage, type LanguageModel, type ToolSet } from 'ai';
 import { tools } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
@@ -27,20 +27,30 @@ just seen, since uids only stay valid until the next snapshot. Prefer fill_form 
 fill calls. If a tool call fails because a uid is stale or an element isn't visible, take a fresh snapshot
 and retry rather than guessing.`;
 
-const MAX_STEPS = 20;
+export const MAX_STEPS = 20;
 
-export async function* runAgentTurn(
-  settings: Settings,
-  history: ChatMessage[],
-  userMessage: string,
-): AsyncGenerator<AgentEvent> {
-  const messages: ModelMessage[] = [
+export function buildMessages(history: ChatMessage[], userMessage: string): ModelMessage[] {
+  return [
     ...history.map((m) => ({ role: m.role, content: m.content }) as ModelMessage),
     { role: 'user', content: userMessage },
   ];
+}
 
+export interface AgentStreamOptions {
+  toolset?: ToolSet;
+  maxSteps?: number;
+}
+
+/**
+ * The ReAct loop itself, decoupled from settings and tool wiring so tests can
+ * drive it with a mock model and mock tools (no browser, no API key).
+ */
+export async function* streamAgentEvents(
+  model: LanguageModel,
+  messages: ModelMessage[],
+  { toolset = tools, maxSteps = MAX_STEPS }: AgentStreamOptions = {},
+): AsyncGenerator<AgentEvent> {
   try {
-    const model = resolveModel(settings);
     const result = streamText({
       model,
       // AI SDK v7 rejects `role: 'system'` entries inside `messages`
@@ -48,8 +58,8 @@ export async function* runAgentTurn(
       // come through this top-level option instead.
       instructions: SYSTEM_PROMPT,
       messages,
-      tools,
-      stopWhen: stepCountIs(MAX_STEPS),
+      tools: toolset,
+      stopWhen: stepCountIs(maxSteps),
     });
 
     for await (const part of result.fullStream) {
@@ -89,11 +99,27 @@ export async function* runAgentTurn(
       stop: {
         finishReason,
         steps: steps.length,
-        hitStepLimit: steps.length >= MAX_STEPS,
+        hitStepLimit: steps.length >= maxSteps,
         totalTokens: usage?.totalTokens,
       },
     };
   } catch (err) {
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Production entry point: resolve the configured provider, then run the loop. */
+export async function* runAgentTurn(
+  settings: Settings,
+  history: ChatMessage[],
+  userMessage: string,
+): AsyncGenerator<AgentEvent> {
+  let model: LanguageModel;
+  try {
+    model = resolveModel(settings);
+  } catch (err) {
+    yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
+    return;
+  }
+  yield* streamAgentEvents(model, buildMessages(history, userMessage));
 }

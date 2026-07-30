@@ -40,9 +40,26 @@ export interface ParsedKeyCombo {
 /** Parses combos like "Control+Shift+R" or a bare "Enter"/"a". Falls back to
  * treating a single unknown character as itself (for letters/digits/symbols). */
 export function parseKeyCombo(combo: string): ParsedKeyCombo {
-  const parts = combo.split('+').map((p) => p.trim());
-  const keyPart = parts[parts.length - 1];
-  const modifierParts = parts.slice(0, -1);
+  let keyPart: string;
+  let modifierParts: string[];
+
+  // '+' doubles as the separator and a legitimate key ("Control++"), so a
+  // naive split on '+' would read the key as an empty modifier.
+  if (combo === '+') {
+    keyPart = '+';
+    modifierParts = [];
+  } else if (combo.endsWith('++')) {
+    keyPart = '+';
+    modifierParts = combo
+      .slice(0, -2)
+      .split('+')
+      .map((p) => p.trim())
+      .filter(Boolean);
+  } else {
+    const parts = combo.split('+').map((p) => p.trim());
+    keyPart = parts[parts.length - 1];
+    modifierParts = parts.slice(0, -1);
+  }
 
   let modifiers = 0;
   for (const mod of modifierParts) {

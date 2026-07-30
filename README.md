@@ -72,4 +72,26 @@ API key.
 
 - `npm run typecheck` — TypeScript, no emit
 - `npm run lint` — ESLint
+- `npm test` / `npm run test:watch` — Vitest
 - `npm run build` — production build to `dist/`
+
+### Testing
+
+The agent loop and all page-state logic run headlessly under Vitest, so most
+changes can be verified without building, reloading the extension, and clicking
+through the side panel:
+
+- `src/test/mockModel.ts` — a scripted `LanguageModelV4` mock. Give it a list of
+  per-step actions (`tool` / `text` / `silent` / `error`) and it replays them, so
+  a full multi-step ReAct turn runs deterministically with no API key.
+- `agentLoop.test.ts` — multi-step tool loops, recovery from a throwing tool, and
+  the `StopInfo` diagnostics (step-limit cutoff vs. clean stop vs. tools-with-no-answer).
+- `formatSnapshot.test.ts` — uid assignment, AX-tree pruning, and the line/character
+  budgets that keep a huge page from exhausting the model's context.
+- `navigationInvalidation.test.ts` — drives fake CDP events through a stub session to
+  check that a main-frame navigation clears console, network, and uid state (and that
+  a subframe navigation does not).
+- `keyTable.test.ts`, `uidMap.test.ts` — key-combo parsing and uid lifetime.
+
+What tests do **not** cover: real `chrome.debugger` attachment, actual CDP responses,
+and provider HTTP calls. Those still need a manual pass in the browser.
