@@ -1,4 +1,4 @@
-import { DebuggerSession } from './DebuggerSession';
+import { DebuggerSession, assertAttachable } from './DebuggerSession';
 import { wireNavigationInvalidation } from './navigationInvalidation';
 import { attachConsoleRecorder } from '../console/ConsoleRecorder';
 import { attachNetworkRecorder } from '../network/NetworkRecorder';
@@ -31,6 +31,7 @@ class SessionRegistry {
   private readonly ownerId = crypto.randomUUID();
   private session: DebuggerSession | null = null;
   private listeners = new Set<(session: DebuggerSession | null) => void>();
+  private queue: Promise<unknown> = Promise.resolve();
 
   getAttached(): DebuggerSession | null {
     return this.session && !this.session.isDetached() ? this.session : null;
@@ -45,10 +46,32 @@ class SessionRegistry {
     for (const l of this.listeners) l(this.getAttached());
   }
 
-  async attach(tabId: number): Promise<DebuggerSession> {
+  /**
+   * Runs attach/detach one at a time. The SDK executes a step's tool calls in
+   * parallel, so several tools routinely reach ensureSession() at once; without
+   * this, each would see "nothing attached" and race to attach, and Chrome
+   * rejects the losers with "Another debugger is already attached".
+   */
+  private serialize<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(operation);
+    this.queue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  attach(tabId: number): Promise<DebuggerSession> {
+    return this.serialize(() => this.attachNow(tabId));
+  }
+
+  private async attachNow(tabId: number): Promise<DebuggerSession> {
     const existing = this.getAttached();
     if (existing && existing.getTabId() === tabId) return existing;
 
+    // Check the target is attachable *before* giving up a working session, so a
+    // rejected switch leaves the agent where it was rather than with nothing.
+    await assertAttachable(tabId);
     await this.assertLockAvailable();
 
     if (existing) {
@@ -72,13 +95,15 @@ class SessionRegistry {
     return session;
   }
 
-  async detach(): Promise<void> {
-    if (this.session) {
-      await this.session.detach();
-      this.session = null;
-    }
-    await this.releaseLock();
-    this.notify();
+  detach(): Promise<void> {
+    return this.serialize(async () => {
+      if (this.session) {
+        await this.session.detach();
+        this.session = null;
+      }
+      await this.releaseLock();
+      this.notify();
+    });
   }
 
   private async assertLockAvailable(): Promise<void> {

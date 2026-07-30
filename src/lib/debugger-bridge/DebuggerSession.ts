@@ -25,6 +25,26 @@ export class SessionDetachedError extends Error {
   }
 }
 
+export class DebuggerConflictError extends Error {
+  constructor() {
+    super(
+      'Something else is already debugging this tab, so it cannot be automated. ' +
+        'This is almost always DevTools being open on that tab — close DevTools ' +
+        '(or any other debugging extension) for this tab, then try again.',
+    );
+    this.name = 'DebuggerConflictError';
+  }
+}
+
+/** Throws if the tab cannot be debugged at all, without touching chrome.debugger. */
+export async function assertAttachable(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId);
+  const url = tab.url ?? tab.pendingUrl ?? '';
+  if (RESTRICTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix))) {
+    throw new RestrictedTargetError(url);
+  }
+}
+
 type EventHandler = (params: unknown) => void;
 
 /**
@@ -69,21 +89,49 @@ export class DebuggerSession {
   }
 
   static async attach(tabId: number): Promise<DebuggerSession> {
-    const tab = await chrome.tabs.get(tabId);
-    const url = tab.url ?? tab.pendingUrl ?? '';
-    if (RESTRICTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix))) {
-      throw new RestrictedTargetError(url);
-    }
+    await assertAttachable(tabId);
 
     const session = new DebuggerSession(tabId);
     try {
-      await chrome.debugger.attach({ tabId }, CDP_VERSION);
+      await session.attachWithRecovery();
+      return session;
     } catch (err) {
-      chrome.debugger.onEvent.removeListener(session.onEventListener);
-      chrome.debugger.onDetach.removeListener(session.onDetachListener);
+      session.removeListeners();
       throw err;
     }
-    return session;
+  }
+
+  private removeListeners(): void {
+    chrome.debugger.onEvent.removeListener(this.onEventListener);
+    chrome.debugger.onDetach.removeListener(this.onDetachListener);
+  }
+
+  private async attachWithRecovery(): Promise<void> {
+    const tabId = this.tabId;
+    try {
+      await chrome.debugger.attach({ tabId }, CDP_VERSION);
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/already attached/i.test(message)) throw err;
+    }
+
+    // Closing the side panel destroys its JS context without reliably
+    // detaching, so the attachment blocking us is often our own orphan from a
+    // previous session. Chrome only lets an extension detach its own
+    // attachment, so if this detach succeeds it was ours to reclaim; if it
+    // fails, something else (usually DevTools) genuinely holds the tab.
+    try {
+      await chrome.debugger.detach({ tabId });
+    } catch {
+      throw new DebuggerConflictError();
+    }
+
+    try {
+      await chrome.debugger.attach({ tabId }, CDP_VERSION);
+    } catch {
+      throw new DebuggerConflictError();
+    }
   }
 
   /** Registered by sessionRegistry so it can clear itself when Chrome (not us) tears the session down. */

@@ -18,6 +18,8 @@ const usage = (input: number, output: number) => ({
 /** What the model should do on a given (1-based) step. */
 export type StepScript =
   | { do: 'tool'; name: string; input?: unknown }
+  /** Several tool calls in one assistant turn — the SDK runs these in parallel. */
+  | { do: 'tools'; calls: { name: string; input?: unknown }[] }
   | { do: 'text'; text: string }
   /** Finishes cleanly but emits nothing — the "ran tools, gave no answer" case. */
   | { do: 'silent' }
@@ -47,6 +49,18 @@ export function scriptedModel(script: StepScript[]) {
                   toolCallId: id,
                   toolName: action.name,
                   input: JSON.stringify(action.input ?? {}),
+                });
+                c.enqueue({ type: 'finish', finishReason: finishReason('tool-calls'), usage: usage(100, 20) });
+                break;
+
+              case 'tools':
+                action.calls.forEach((call, i) => {
+                  c.enqueue({
+                    type: 'tool-call',
+                    toolCallId: `${id}-${i}`,
+                    toolName: call.name,
+                    input: JSON.stringify(call.input ?? {}),
+                  });
                 });
                 c.enqueue({ type: 'finish', finishReason: finishReason('tool-calls'), usage: usage(100, 20) });
                 break;

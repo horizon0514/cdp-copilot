@@ -229,6 +229,49 @@ test('lists open pages and can open and close one', async ({ panel, openTarget }
   expect(after.pages.map((p) => p.pageId)).not.toContain(opened.pageId);
 });
 
+test('concurrent tool calls share one attachment instead of colliding', async ({
+  panel,
+  openTarget,
+}) => {
+  const { tabId } = await openTarget('/page.html');
+  await panel.evaluate(() => window.__cdp.detach());
+
+  // The SDK runs a step's tool calls in parallel, so this is the everyday path.
+  // Chrome rejects a second attach to the same tab, which surfaced to the model
+  // as "another debugger is already attached".
+  const results = await panel.evaluate(async (id) => {
+    const settled = await Promise.allSettled([
+      window.__cdp.attach(id),
+      window.__cdp.attach(id),
+      window.__cdp.attach(id),
+    ]);
+    return settled.map((s) => (s.status === 'rejected' ? String(s.reason) : 'ok'));
+  }, tabId);
+
+  expect(results).toEqual(['ok', 'ok', 'ok']);
+  expect(await panel.evaluate(() => window.__cdp.attachedTabId())).toBe(tabId);
+
+  // And the shared session is actually usable afterwards.
+  const snap = await callTool<SnapshotResult>(panel, 'take_snapshot');
+  expect(snap.snapshot).toContain('Fixture Page');
+});
+
+test('recovers when a previous attachment was left behind', async ({ panel, openTarget }) => {
+  const { tabId } = await openTarget('/page.html');
+
+  // Attach out-of-band and drop our bookkeeping, mimicking a panel that was
+  // closed without detaching. Re-attaching must reclaim it, not fail.
+  await panel.evaluate(async (id) => {
+    await window.__cdp.detach();
+    await chrome.debugger.attach({ tabId: id }, '1.3');
+  }, tabId);
+
+  await panel.evaluate((id) => window.__cdp.attach(id), tabId);
+
+  const snap = await callTool<SnapshotResult>(panel, 'take_snapshot');
+  expect(snap.snapshot).toContain('Fixture Page');
+});
+
 test('refuses to attach to a restricted page', async ({ panel }) => {
   // chrome-extension:// pages cannot be debugged; the failure must be legible.
   await expect(
