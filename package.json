@@ -8,9 +8,11 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src e2e",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:e2e": "VITE_E2E=true vite build",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.0",
@@ -35,7 +37,9 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.31",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.62.0",
     "@types/chrome": "^0.0.287",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

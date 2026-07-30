@@ -27,9 +27,29 @@ export async function pressKeyCombo(session: DebuggerSession, combo: string): Pr
   await dispatchKey(session, 'keyUp', descriptor, modifiers);
 }
 
+/**
+ * Selects the focused field's existing content so the next insertText replaces
+ * it. Sending a synthetic Ctrl/Cmd+A does NOT work — select-all is a browser
+ * editing command, and the renderer ignores it arriving as a raw key event, so
+ * the caret stays put and new text lands beside the old value. CDP's `commands`
+ * parameter invokes the editing command directly, which does work (and also
+ * covers contenteditable).
+ */
 async function selectAll(session: DebuggerSession): Promise<void> {
   const isMac = navigator.platform.toLowerCase().includes('mac');
-  await pressKeyCombo(session, isMac ? 'Meta+a' : 'Control+a');
+  const key = {
+    key: 'a',
+    code: 'KeyA',
+    windowsVirtualKeyCode: 65,
+    nativeVirtualKeyCode: 65,
+    modifiers: isMac ? 4 : 2,
+  };
+  await session.send('Input.dispatchKeyEvent', {
+    ...key,
+    type: 'keyDown',
+    commands: ['selectAll'],
+  });
+  await session.send('Input.dispatchKeyEvent', { ...key, type: 'keyUp' });
 }
 
 async function moveAndClick(

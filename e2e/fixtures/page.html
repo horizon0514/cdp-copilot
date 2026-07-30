@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>cdp-copilot e2e fixture</title>
+  </head>
+  <body>
+    <h1 id="heading">Fixture Page</h1>
+
+    <button id="counter" type="button">Clicked 0 times</button>
+
+    <label for="search">Search</label>
+    <!-- Deliberately pre-filled: `fill` must replace this, not append to it. -->
+    <input id="search" type="text" value="existing value" />
+
+    <label for="typed">Typed</label>
+    <input id="typed" type="text" />
+
+    <a href="/other.html" id="nav-link">Go to other page</a>
+
+    <div id="delayed"></div>
+
+    <script>
+      let count = 0;
+      document.getElementById('counter').addEventListener('click', () => {
+        count += 1;
+        document.getElementById('counter').textContent = `Clicked ${count} times`;
+      });
+
+      // Records real keyboard events so E2E can prove input was dispatched
+      // through the browser rather than set via JS.
+      window.__keys = [];
+      document.getElementById('typed').addEventListener('keydown', (e) => {
+        window.__keys.push(e.key);
+      });
+
+      console.error('fixture console error');
+      console.log('fixture console log');
+
+      fetch('/api/data.json').catch(() => {});
+
+      setTimeout(() => {
+        document.getElementById('delayed').textContent = 'delayed content arrived';
+      }, 300);
+    </script>
+  </body>
+</html>

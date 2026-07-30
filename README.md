@@ -72,7 +72,8 @@ API key.
 
 - `npm run typecheck` — TypeScript, no emit
 - `npm run lint` — ESLint
-- `npm test` / `npm run test:watch` — Vitest
+- `npm test` / `npm run test:watch` — Vitest (unit)
+- `npm run build:e2e && npm run test:e2e` — Playwright (end-to-end)
 - `npm run build` — production build to `dist/`
 
 ### Testing
@@ -93,5 +94,33 @@ through the side panel:
   a subframe navigation does not).
 - `keyTable.test.ts`, `uidMap.test.ts` — key-combo parsing and uid lifetime.
 
-What tests do **not** cover: real `chrome.debugger` attachment, actual CDP responses,
-and provider HTTP calls. Those still need a manual pass in the browser.
+#### End-to-end (Playwright)
+
+```bash
+npm run build:e2e && npm run test:e2e
+```
+
+Runs headless against a real Chromium with the extension loaded, covering the
+things unit tests structurally cannot: a genuine `chrome.debugger` attachment,
+live CDP responses from a real renderer, and input dispatched through the
+browser rather than simulated.
+
+`e2e/fixtures/` is served over HTTP (extensions need an explicit opt-in for
+`file://`) and includes a pre-filled input, a click counter, real console output,
+and a `fetch` — so assertions can prove effects rather than just that a call
+returned. Notably, `click` is verified by the page's own handler running, and
+`type_text` by the keystrokes the page actually received.
+
+`npm run build:e2e` sets `VITE_E2E=true`, which exposes a `window.__cdp` bridge
+(`src/e2e/hook.ts`) on the side panel page so Playwright can invoke tools the way
+the agent loop does. The flag is statically false in normal builds, so the branch
+and its chunk are dropped — **never ship an E2E build.**
+
+Two bugs found by this suite that unit tests had passed clean on: `fill`
+prepending instead of replacing (synthetic Ctrl/Cmd+A does not trigger
+select-all; CDP's `commands: ['selectAll']` does), and `parseKeyCombo('+')`
+throwing.
+
+What still needs a manual pass: provider HTTP calls (no real LLM is exercised),
+the side panel opening as an actual Chrome side panel rather than a tab, and the
+debugger permission banner.
