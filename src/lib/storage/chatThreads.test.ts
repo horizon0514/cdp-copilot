@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installChromeMock, type ChromeMock } from '../../test/chromeMock';
+import { idbClearAll } from './idb';
 import {
   loadThreadStore,
   makeEmptyThread,
@@ -10,16 +11,18 @@ import {
 
 let mock: ChromeMock;
 
-beforeEach(() => {
+beforeEach(async () => {
   mock = installChromeMock();
+  await idbClearAll();
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await idbClearAll();
   mock.restore();
 });
 
-describe('chatThreads storage', () => {
-  it('redacts screenshot payloads before persisting', () => {
+describe('chatThreads storage (IndexedDB)', () => {
+  it('keeps screenshot payloads when preparing for IDB', () => {
     const png = `data:image/png;base64,${'A'.repeat(5000)}`;
     const { messages } = sanitizeThreadForStorage(
       [
@@ -40,13 +43,10 @@ describe('chatThreads storage', () => {
       ],
       [],
     );
-    expect(JSON.stringify(messages)).not.toContain('data:image');
-    expect(messages[0].toolCalls[0].result).toMatchObject({
-      image: expect.stringMatching(/^\[image \d+KB\]$/),
-    });
+    expect(messages[0].toolCalls[0].result).toEqual({ image: png });
   });
 
-  it('round-trips threads through chrome.storage.local', async () => {
+  it('round-trips threads through IndexedDB', async () => {
     const empty = makeEmptyThread();
     await saveThreadStore({ threads: [empty], activeThreadId: empty.id });
 
@@ -73,5 +73,27 @@ describe('chatThreads storage', () => {
     await saveThreadStore(next);
     const loaded = await loadThreadStore();
     expect(loaded.threads[0].title).toBe('Summarize this page please');
+  });
+
+  it('migrates legacy chrome.storage.local threads into IndexedDB once', async () => {
+    const legacy = makeEmptyThread();
+    legacy.title = 'Legacy chat';
+    await chrome.storage.local.set({
+      'cdp-copilot:threads': { threads: [legacy], activeThreadId: legacy.id },
+    });
+
+    const loaded = await loadThreadStore();
+    expect(loaded.threads[0].title).toBe('Legacy chat');
+
+    // Legacy key is removed after migration.
+    const leftover = await chrome.storage.local.get('cdp-copilot:threads');
+    expect(leftover['cdp-copilot:threads']).toBeUndefined();
+
+    // Second load comes from IDB, not chrome.storage.
+    await chrome.storage.local.set({
+      'cdp-copilot:threads': { threads: [], activeThreadId: null },
+    });
+    const again = await loadThreadStore();
+    expect(again.threads[0].title).toBe('Legacy chat');
   });
 });

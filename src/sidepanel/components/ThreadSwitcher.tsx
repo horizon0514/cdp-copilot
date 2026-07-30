@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquarePlus } from 'lucide-react';
+import { ChevronDown, MessageSquarePlus, MessagesSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import type { ThreadSummary } from '../state/conversationStore';
@@ -31,23 +31,38 @@ export default function ThreadSwitcher({
   const title = current?.title ?? 'New chat';
 
   return (
-    <div className="relative flex min-w-0 flex-1 items-center gap-1">
+    <div className="relative flex min-w-0 flex-1 items-center gap-0.5">
       <button
         type="button"
         disabled={isStreaming}
         onClick={() => setOpen((v) => !v)}
-        className="min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-left text-[12px] text-fg-secondary outline-none hover:bg-surface-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent-line disabled:opacity-40"
-        aria-label="Chat history"
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-1 text-left outline-none',
+          'hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-accent-line',
+          'disabled:opacity-40',
+          open && 'bg-surface-active',
+        )}
+        aria-label="Open chat list"
         aria-expanded={open}
+        title="Chat history"
       >
-        {title}
+        <MessagesSquare className="size-3.5 shrink-0 text-fg-tertiary" />
+        <span className="min-w-0 flex-1 truncate text-[12px] text-fg-secondary">{title}</span>
+        <ChevronDown
+          className={cn(
+            'size-3 shrink-0 text-fg-tertiary transition-transform',
+            open && 'rotate-180',
+          )}
+        />
       </button>
+
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
         disabled={isStreaming}
         aria-label="New chat"
+        title="New chat"
         onClick={() => {
           setOpen(false);
           onNewChat();
@@ -61,10 +76,17 @@ export default function ThreadSwitcher({
           <button
             type="button"
             className="fixed inset-0 z-40 cursor-default"
-            aria-label="Close chat history"
+            aria-label="Close chat list"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute top-full left-0 z-50 mt-1 max-h-64 w-[min(100%,280px)] overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-lg">
+          <div
+            className="absolute top-full left-0 z-50 mt-1 max-h-64 w-[min(100%,280px)] overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-lg"
+            role="listbox"
+            aria-label="Chat sessions"
+          >
+            <div className="px-2.5 py-1.5 text-[10px] font-medium tracking-[0.06em] text-fg-tertiary uppercase">
+              Chats
+            </div>
             {threadList.length === 0 ? (
               <div className="px-2.5 py-2 text-[11px] text-fg-tertiary">No chats yet</div>
             ) : (
@@ -72,6 +94,8 @@ export default function ThreadSwitcher({
                 <button
                   key={t.id}
                   type="button"
+                  role="option"
+                  aria-selected={t.id === threadId}
                   onClick={() => {
                     setOpen(false);
                     onSwitch(t.id);
