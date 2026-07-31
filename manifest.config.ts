@@ -44,7 +44,12 @@ export default defineManifest({
     ? { host_permissions: ['https://*/*', 'http://localhost/*'] }
     : {
         optional_host_permissions: ['https://*/*', 'http://localhost/*'],
-        host_permissions: ['https://api.openai.com/*', 'https://api.anthropic.com/*'],
+        // Mirrored by DEFAULT_HOST_ORIGINS in SettingsPanel.tsx.
+        host_permissions: [
+          'https://api.deepseek.com/*',
+          'https://api.openai.com/*',
+          'https://api.anthropic.com/*',
+        ],
       }),
   minimum_chrome_version: '116',
 });

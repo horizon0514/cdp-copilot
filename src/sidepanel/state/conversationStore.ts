@@ -38,6 +38,7 @@ interface ConversationState {
   addToolCall: (id: string, call: Omit<DisplayToolCall, 'status'>) => void;
   updateToolResult: (id: string, toolCallId: string, result: unknown) => void;
   updateToolError: (id: string, toolCallId: string, error: string) => void;
+  abandonRunningToolCalls: (id: string) => void;
   setMessageError: (id: string, error: string) => void;
   setMessageStop: (id: string, stop: StopInfo) => void;
   commitTurn: (userText: string, responseMessages: TurnResponseMessage[]) => void;
@@ -192,6 +193,16 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       messages: updateMessage(state.messages, id, (m) => ({
         ...m,
         toolCalls: m.toolCalls.map((tc) => (tc.id === toolCallId ? { ...tc, status: 'error', error } : tc)),
+      })),
+    })),
+
+  // A stopped turn never delivers results for the tools still in flight, so
+  // settle them here or the transcript keeps spinning forever.
+  abandonRunningToolCalls: (id) =>
+    set((state) => ({
+      messages: updateMessage(state.messages, id, (m) => ({
+        ...m,
+        toolCalls: m.toolCalls.map((tc) => (tc.status === 'running' ? { ...tc, status: 'aborted' } : tc)),
       })),
     })),
 

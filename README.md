@@ -40,7 +40,9 @@ npm run build    # production build
 Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load
 unpacked** → select the `dist/` folder. Click the extension's action icon to
 open the side panel, then open Settings (⚙) to enter your LLM provider and
-API key.
+API key. It defaults to DeepSeek (`deepseek-v4-flash`), so a key is the only
+thing you have to supply; OpenAI, Anthropic and any OpenAI-compatible endpoint
+are in the same dropdown.
 
 ## Security notes
 

@@ -53,3 +53,33 @@ export function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] 
     return { ...message, content } as ModelMessage;
   });
 }
+
+/**
+ * Stopping a turn mid-step can leave an assistant tool-call with no matching
+ * tool-result. Providers reject that history on the next turn (Anthropic and
+ * OpenAI both require every tool call to be answered), so drop the orphans —
+ * and any message left with nothing in it.
+ */
+export function dropDanglingToolCalls<T extends ModelMessage>(messages: T[]): T[] {
+  const answered = new Set<string>();
+  for (const message of messages) {
+    if (message.role !== 'tool' || !Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (part.type === 'tool-result') answered.add(part.toolCallId);
+    }
+  }
+
+  const kept: T[] = [];
+  for (const message of messages) {
+    if (message.role !== 'assistant' || !Array.isArray(message.content)) {
+      kept.push(message);
+      continue;
+    }
+    const content = message.content.filter(
+      (part) => part.type !== 'tool-call' || answered.has(part.toolCallId),
+    );
+    if (content.length === 0) continue;
+    kept.push({ ...message, content } as T);
+  }
+  return kept;
+}

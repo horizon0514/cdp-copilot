@@ -67,10 +67,11 @@ export const wait_for = tool({
     text: z.array(z.string()).min(1),
     timeout: z.number().optional().describe('Max wait time in ms. Default 10000.'),
   }),
-  execute: async ({ text, timeout }) => {
+  execute: async ({ text, timeout }, { abortSignal }) => {
     const session = await ensureSession();
     const deadline = Date.now() + (timeout ?? 10_000);
-    while (Date.now() < deadline) {
+    // Without this check a stop can't land until the poll's deadline passes.
+    while (Date.now() < deadline && !abortSignal?.aborted) {
       const { result } = await session.send<{ result: { value: boolean } }>('Runtime.evaluate', {
         expression: `(() => { const t = document.body.innerText; return ${JSON.stringify(text)}.some(s => t.includes(s)); })()`,
         returnByValue: true,

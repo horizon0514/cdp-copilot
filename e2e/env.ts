@@ -46,6 +46,6 @@ export function liveLlmConfig(): LiveLlmConfig | null {
   return {
     apiKey,
     baseURL: process.env.LLM_BASE_URL?.trim() || 'https://api.deepseek.com/v1',
-    model: process.env.LLM_MODEL?.trim() || 'deepseek-chat',
+    model: process.env.LLM_MODEL?.trim() || 'deepseek-v4-flash',
   };
 }

@@ -22,11 +22,16 @@ const throwingTool = tool({
 
 const toolset: ToolSet = { okTool, throwingTool };
 
-async function collect(script: StepScript[], maxSteps = 20) {
+async function collect(
+  script: StepScript[],
+  maxSteps = 20,
+  options: { abortSignal?: AbortSignal; toolset?: ToolSet } = {},
+) {
   const events: AgentEvent[] = [];
   for await (const e of streamAgentEvents(scriptedModel(script), [{ role: 'user', content: 'go' }], {
-    toolset,
+    toolset: options.toolset ?? toolset,
     maxSteps,
+    abortSignal: options.abortSignal,
   })) {
     events.push(e);
   }
@@ -107,6 +112,78 @@ describe('streamAgentEvents — StopInfo diagnostics', () => {
     const { events } = await collect([{ do: 'error', message: 'context length exceeded' }]);
     const err = events.find((e) => e.type === 'error');
     expect((err as Extract<AgentEvent, { type: 'error' }>).message).toContain('context length exceeded');
+  });
+});
+
+describe('streamAgentEvents — stopping a running turn', () => {
+  it('ends the turn as aborted, not as an error, when the signal fires mid-run', async () => {
+    const controller = new AbortController();
+    const stoppingTool = tool({
+      description: 'stops the turn while it runs',
+      inputSchema: z.object({}),
+      execute: async () => {
+        controller.abort();
+        return { ok: true };
+      },
+    });
+
+    const { events, stop } = await collect(
+      // The script would run forever; only the abort can end it.
+      [{ do: 'tool', name: 'stoppingTool' }],
+      20,
+      { abortSignal: controller.signal, toolset: { stoppingTool } },
+    );
+
+    expect(events.some((e) => e.type === 'error')).toBe(false);
+    expect(stop).toMatchObject({ aborted: true, finishReason: 'abort' });
+  });
+
+  it('stops before the first model call when the signal is already aborted', async () => {
+    const { events, stop } = await collect([{ do: 'text', text: 'never sent' }], 20, {
+      abortSignal: AbortSignal.abort(),
+    });
+
+    expect(events.some((e) => e.type === 'error')).toBe(false);
+    expect(stop).toMatchObject({ aborted: true, steps: 0 });
+    const done = events.find((e) => e.type === 'done');
+    if (done?.type !== 'done') throw new Error('expected done');
+    // History still has to alternate — the turn owes the user message a reply.
+    expect(done.responseMessages).toEqual([
+      { role: 'assistant', content: '[Stopped by the user before I finished this turn.]' },
+    ]);
+  });
+
+  it('never hands back a tool call whose result the stop cut off', async () => {
+    const controller = new AbortController();
+    const stoppingTool = tool({
+      description: 'stops the turn while it runs',
+      inputSchema: z.object({}),
+      execute: async () => {
+        controller.abort();
+        return { ok: true };
+      },
+    });
+
+    const { events } = await collect([{ do: 'tool', name: 'stoppingTool' }], 20, {
+      abortSignal: controller.signal,
+      toolset: { stoppingTool },
+    });
+    const done = events.find((e) => e.type === 'done');
+    if (done?.type !== 'done') throw new Error('expected done');
+
+    const answered = new Set(
+      done.responseMessages.flatMap((m) =>
+        m.role === 'tool' && Array.isArray(m.content)
+          ? m.content.filter((p) => p.type === 'tool-result').map((p) => p.toolCallId)
+          : [],
+      ),
+    );
+    const calls = done.responseMessages.flatMap((m) =>
+      m.role === 'assistant' && Array.isArray(m.content)
+        ? m.content.filter((p) => p.type === 'tool-call').map((p) => p.toolCallId)
+        : [],
+    );
+    expect(calls.every((id) => answered.has(id))).toBe(true);
   });
 });
 

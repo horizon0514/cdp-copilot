@@ -1,11 +1,23 @@
 import { FormEvent, useState } from 'react';
-import { Settings, ProviderId, DEFAULT_MODELS } from '../../lib/storage/schema';
+import {
+  Settings,
+  ProviderId,
+  DEFAULT_MODELS,
+  DEFAULT_PROVIDER,
+  DEEPSEEK_BASE_URL,
+} from '../../lib/storage/schema';
 import { Label, SectionLabel } from './ui/label';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
-const DEFAULT_HOST_ORIGINS = new Set(['https://api.openai.com', 'https://api.anthropic.com']);
+/** Kept in sync with `host_permissions` in manifest.config.ts — origins listed
+ * there are already granted, so asking again would raise a needless dialog. */
+const DEFAULT_HOST_ORIGINS = new Set([
+  'https://api.openai.com',
+  'https://api.anthropic.com',
+  'https://api.deepseek.com',
+]);
 
 interface Props {
   initial: Settings | null;
@@ -43,9 +55,9 @@ function Field({
 }
 
 export default function SettingsPanel({ initial, onSave, onClose }: Props) {
-  const [provider, setProvider] = useState<ProviderId>(initial?.provider ?? 'openai');
+  const [provider, setProvider] = useState<ProviderId>(initial?.provider ?? DEFAULT_PROVIDER);
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '');
-  const [model, setModel] = useState(initial?.model ?? DEFAULT_MODELS.openai);
+  const [model, setModel] = useState(initial?.model ?? DEFAULT_MODELS[DEFAULT_PROVIDER]);
   const [baseURL, setBaseURL] = useState(initial?.baseURL ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -82,6 +94,7 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="deepseek">DeepSeek</SelectItem>
               <SelectItem value="openai">OpenAI</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
               <SelectItem value="openai-compatible">OpenAI-compatible</SelectItem>
@@ -107,16 +120,18 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
         <Field
           label={provider === 'openai-compatible' ? 'Base URL' : 'Base URL (optional)'}
           hint={
-            provider === 'openai'
-              ? 'Must serve the Responses API (/responses). Custom endpoints need a one-time permission grant.'
-              : 'Custom endpoints (OpenRouter, Azure, local Ollama) need a one-time permission grant.'
+            provider === 'deepseek'
+              ? `Leave empty for ${DEEPSEEK_BASE_URL}. A proxy or regional endpoint needs a one-time permission grant.`
+              : provider === 'openai'
+                ? 'Must serve the Responses API (/responses). Custom endpoints need a one-time permission grant.'
+                : 'Custom endpoints (OpenRouter, Azure, local Ollama) need a one-time permission grant.'
           }
           htmlFor="baseURL"
         >
           <Input
             id="baseURL"
             type="url"
-            placeholder="https://…"
+            placeholder={provider === 'deepseek' ? DEEPSEEK_BASE_URL : 'https://…'}
             value={baseURL}
             onChange={(e) => setBaseURL(e.target.value)}
           />

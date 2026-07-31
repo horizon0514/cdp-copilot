@@ -4,7 +4,7 @@ export interface DisplayToolCall {
   id: string;
   name: string;
   args: unknown;
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'aborted';
   result?: unknown;
   error?: string;
 }
