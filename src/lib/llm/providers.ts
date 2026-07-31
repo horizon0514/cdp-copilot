@@ -16,17 +16,26 @@ export function resolveModel(settings: Settings): LanguageModel {
       });
       return anthropic(settings.model);
     }
-    case 'openai':
+    case 'openai': {
+      const openai = createOpenAI({
+        apiKey: settings.apiKey,
+        // Optional here: an Azure/gateway deployment that speaks Responses can
+        // be pointed at, and every request path (including /responses) is
+        // rebased onto it.
+        baseURL: settings.baseURL,
+      });
+      // Responses API — the system prompt reaches it through streamText's
+      // top-level `instructions` option, so nothing has to live in `messages`.
+      return openai.responses(settings.model);
+    }
     case 'openai-compatible': {
       const openai = createOpenAI({
         apiKey: settings.apiKey,
         baseURL: settings.baseURL,
       });
-      // The bare `openai(modelId)` call targets OpenAI's Responses API,
-      // which rejects a `system`-role message in `messages` (it wants a
-      // separate `instructions` field instead). Chat Completions is what
-      // both real OpenAI and virtually every third-party "OpenAI-compatible"
-      // server (Ollama, vLLM, OpenRouter, LiteLLM, ...) actually implement.
+      // Chat Completions is what virtually every third-party "OpenAI-compatible"
+      // server (Ollama, vLLM, OpenRouter, LiteLLM, ...) actually implements;
+      // /responses is still rare outside OpenAI itself.
       return openai.chat(settings.model);
     }
   }

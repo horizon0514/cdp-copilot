@@ -106,7 +106,11 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
 
         <Field
           label={provider === 'openai-compatible' ? 'Base URL' : 'Base URL (optional)'}
-          hint="Custom endpoints (OpenRouter, Azure, local Ollama) need a one-time permission grant."
+          hint={
+            provider === 'openai'
+              ? 'Must serve the Responses API (/responses). Custom endpoints need a one-time permission grant.'
+              : 'Custom endpoints (OpenRouter, Azure, local Ollama) need a one-time permission grant.'
+          }
           htmlFor="baseURL"
         >
           <Input
