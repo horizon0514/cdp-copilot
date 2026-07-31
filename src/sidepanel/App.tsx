@@ -79,6 +79,8 @@ function Composer({
           placeholder={isStreaming ? 'Working on this page…' : 'Ask anything about this page…'}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
+            // IME (e.g. Chinese Pinyin): Enter confirms composition — don't send.
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               if (!input.trim() || isStreaming) return;
