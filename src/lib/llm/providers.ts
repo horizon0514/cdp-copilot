@@ -1,10 +1,19 @@
 import { wrapLanguageModel, defaultSettingsMiddleware, type LanguageModel } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { Settings } from '../storage/schema';
+import { DEEPSEEK_BASE_URL, Settings } from '../storage/schema';
 
 export function resolveModel(settings: Settings): LanguageModel {
   switch (settings.provider) {
+    case 'deepseek': {
+      const deepseek = createOpenAI({
+        apiKey: settings.apiKey,
+        // Overridable so a proxy or a regional endpoint can stand in.
+        baseURL: settings.baseURL ?? DEEPSEEK_BASE_URL,
+      });
+      // Chat Completions, not /responses — DeepSeek doesn't serve the latter.
+      return deepseek.chat(settings.model);
+    }
     case 'anthropic': {
       const anthropic = createAnthropic({
         apiKey: settings.apiKey,

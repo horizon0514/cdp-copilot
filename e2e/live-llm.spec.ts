@@ -23,7 +23,7 @@ test.describe('live LLM', () => {
   async function setUp(panel: Page, targetUrl: string) {
     await panel.evaluate(
       (settings) => chrome.storage.local.set({ 'cdp-copilot:settings': settings }),
-      { provider: 'openai-compatible', ...live! },
+      { provider: 'deepseek', ...live! },
     );
 
     // Reload for the panel to pick up settings — this also drops the previous JS
