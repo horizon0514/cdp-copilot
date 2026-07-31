@@ -10,7 +10,7 @@ import {
 import { tools } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
-import { sanitizeModelMessages } from './sanitizeMessages';
+import { dropDanglingToolCalls, sanitizeModelMessages } from './sanitizeMessages';
 
 /** Assistant + tool messages produced by a single streamText call. */
 export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
@@ -30,6 +30,8 @@ export interface StopInfo {
   steps: number;
   hitStepLimit: boolean;
   totalTokens?: number;
+  /** The user pressed stop — not a model or provider decision. */
+  aborted?: boolean;
 }
 
 // The identity line is load-bearing: without it a model answers "who are you"
@@ -52,6 +54,20 @@ export function buildMessages(history: ModelMessage[], userMessage: string): Mod
 export interface AgentStreamOptions {
   toolset?: ToolSet;
   maxSteps?: number;
+  /** Abort the turn mid-flight (the composer's stop button). */
+  abortSignal?: AbortSignal;
+}
+
+/**
+ * Aborting throws away the in-flight step, so the SDK rejects its result
+ * promises when no step ever completed. Fall back instead of letting that
+ * surface to the user as a failure — they asked for the stop.
+ */
+function tolerate<T>(promise: PromiseLike<T>, fallback: T): Promise<T> {
+  return Promise.resolve(promise).then(
+    (value) => value,
+    () => fallback,
+  );
 }
 
 /**
@@ -61,8 +77,9 @@ export interface AgentStreamOptions {
 export async function* streamAgentEvents(
   model: LanguageModel,
   messages: ModelMessage[],
-  { toolset = tools, maxSteps = MAX_STEPS }: AgentStreamOptions = {},
+  { toolset = tools, maxSteps = MAX_STEPS, abortSignal }: AgentStreamOptions = {},
 ): AsyncGenerator<AgentEvent> {
+  const stopped = () => abortSignal?.aborted === true;
   try {
     const result = streamText({
       model,
@@ -73,6 +90,7 @@ export async function* streamAgentEvents(
       messages,
       tools: toolset,
       stopWhen: stepCountIs(maxSteps),
+      abortSignal,
     });
 
     for await (const part of result.fullStream) {
@@ -102,6 +120,11 @@ export async function* streamAgentEvents(
       }
     }
 
+    if (stopped()) {
+      yield await abortedTurn(result, maxSteps);
+      return;
+    }
+
     const [finishReason, steps, usage, responseMessages] = await Promise.all([
       result.finishReason,
       result.steps,
@@ -120,8 +143,56 @@ export async function* streamAgentEvents(
       responseMessages: sanitizeModelMessages(responseMessages) as TurnResponseMessage[],
     };
   } catch (err) {
+    // A stop tears down the model request, so the failure it raises is expected.
+    if (stopped()) {
+      yield {
+        type: 'done',
+        stop: { finishReason: 'abort', steps: 0, hitStepLimit: false, aborted: true },
+        responseMessages: [STOP_NOTE],
+      };
+      return;
+    }
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Stands in for the reply the user cut off. Anthropic and OpenAI both expect an
+ * assistant turn between two user messages, and this says why there isn't one. */
+const STOP_NOTE: AssistantModelMessage = {
+  role: 'assistant',
+  content: '[Stopped by the user before I finished this turn.]',
+};
+
+/**
+ * Keep whatever steps finished before the stop so the transcript the model sees
+ * next turn matches what the user watched happen — minus any tool call whose
+ * result never arrived, which providers reject.
+ */
+async function abortedTurn(
+  result: ReturnType<typeof streamText>,
+  maxSteps: number,
+): Promise<Extract<AgentEvent, { type: 'done' }>> {
+  const [steps, totalTokens, responseMessages] = await Promise.all([
+    tolerate(Promise.resolve(result.steps).then((s) => s.length), 0),
+    tolerate(Promise.resolve(result.totalUsage).then((u) => u?.totalTokens), undefined),
+    tolerate(Promise.resolve(result.responseMessages).then((m) => m as TurnResponseMessage[]), []),
+  ]);
+
+  const kept = dropDanglingToolCalls(
+    sanitizeModelMessages(responseMessages) as TurnResponseMessage[],
+  );
+
+  return {
+    type: 'done',
+    stop: {
+      finishReason: 'abort',
+      steps,
+      hitStepLimit: steps >= maxSteps,
+      totalTokens,
+      aborted: true,
+    },
+    responseMessages: kept.some((m) => m.role === 'assistant') ? kept : [...kept, STOP_NOTE],
+  };
 }
 
 /** Production entry point: resolve the configured provider, then run the loop. */
@@ -129,6 +200,7 @@ export async function* runAgentTurn(
   settings: Settings,
   history: ModelMessage[],
   userMessage: string,
+  abortSignal?: AbortSignal,
 ): AsyncGenerator<AgentEvent> {
   let model: LanguageModel;
   try {
@@ -137,5 +209,5 @@ export async function* runAgentTurn(
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
     return;
   }
-  yield* streamAgentEvents(model, buildMessages(history, userMessage));
+  yield* streamAgentEvents(model, buildMessages(history, userMessage), { abortSignal });
 }

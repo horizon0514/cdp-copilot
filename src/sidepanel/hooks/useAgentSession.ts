@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
@@ -22,10 +22,18 @@ export function useAgentSession(settings: Settings | null) {
   const addToolCall = useConversationStore((s) => s.addToolCall);
   const updateToolResult = useConversationStore((s) => s.updateToolResult);
   const updateToolError = useConversationStore((s) => s.updateToolError);
+  const abandonRunningToolCalls = useConversationStore((s) => s.abandonRunningToolCalls);
   const setMessageError = useConversationStore((s) => s.setMessageError);
   const setMessageStop = useConversationStore((s) => s.setMessageStop);
   const commitTurn = useConversationStore((s) => s.commitTurn);
   const setStreaming = useConversationStore((s) => s.setStreaming);
+
+  /** Live turn's controller — `stop()` is the only way out of a long agent run. */
+  const abortRef = useRef<AbortController | null>(null);
+
+  // The side panel closes mid-turn often enough that leaving the run detached
+  // would keep driving the page with nothing rendering it.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -38,6 +46,9 @@ export function useAgentSession(settings: Settings | null) {
       const assistantId = startAssistantMessage();
       setStreaming(true);
 
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       // Bind the turn to the current session tab (or active tab on first use)
       // and track any tabs new_page opens for cleanup when the turn ends.
       try {
@@ -48,7 +59,7 @@ export function useAgentSession(settings: Settings | null) {
       }
 
       try {
-        for await (const event of runAgentTurn(settings, history, text)) {
+        for await (const event of runAgentTurn(settings, history, text, controller.signal)) {
           switch (event.type) {
             case 'text-delta':
               appendAssistantText(assistantId, event.text);
@@ -73,6 +84,8 @@ export function useAgentSession(settings: Settings | null) {
           }
         }
       } finally {
+        abandonRunningToolCalls(assistantId);
+        abortRef.current = null;
         setStreaming(false);
         await agentTabTracker.cleanup();
         await persist();
@@ -87,6 +100,7 @@ export function useAgentSession(settings: Settings | null) {
       addToolCall,
       updateToolResult,
       updateToolError,
+      abandonRunningToolCalls,
       setMessageError,
       setMessageStop,
       commitTurn,
@@ -95,10 +109,15 @@ export function useAgentSession(settings: Settings | null) {
     ],
   );
 
+  const stopAgent = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
   return {
     messages,
     isStreaming,
     sendMessage,
+    stopAgent,
     threadId,
     threadList,
     hydrated,

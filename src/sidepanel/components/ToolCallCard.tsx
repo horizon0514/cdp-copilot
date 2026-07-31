@@ -22,6 +22,7 @@ const STATUS = {
   running: { variant: 'caution' as const, label: 'Running', pulse: true },
   done: { variant: 'positive' as const, label: 'Done', pulse: false },
   error: { variant: 'negative' as const, label: 'Failed', pulse: false },
+  aborted: { variant: 'neutral' as const, label: 'Stopped', pulse: false },
 };
 
 function Block({ label, body, tone }: { label: string; body: string; tone?: 'negative' }) {
@@ -134,6 +135,9 @@ export default function ToolCallCard({ call }: { call: DisplayToolCall }) {
           )}
           {call.status === 'error' && (
             <Block label="Error" body={call.error ?? ''} tone="negative" />
+          )}
+          {call.status === 'aborted' && (
+            <Block label="Result" body="Stopped before this tool reported back." />
           )}
         </div>
       </details>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelMessage } from 'ai';
-import { sanitizeModelMessages, sanitizeValue } from './sanitizeMessages';
+import { dropDanglingToolCalls, sanitizeModelMessages, sanitizeValue } from './sanitizeMessages';
 
 describe('sanitizeModelMessages', () => {
   const png = `data:image/png;base64,${'A'.repeat(200)}`;
@@ -37,5 +37,43 @@ describe('sanitizeModelMessages', () => {
       snapshot: 'button "OK"',
       n: 2,
     });
+  });
+});
+
+describe('dropDanglingToolCalls', () => {
+  const call = (id: string) => ({ type: 'tool-call' as const, toolCallId: id, toolName: 'click', input: {} });
+  const result = (id: string) => ({
+    type: 'tool-result' as const,
+    toolCallId: id,
+    toolName: 'click',
+    output: { type: 'json' as const, value: { ok: true } },
+  });
+
+  it('keeps tool calls that were answered', () => {
+    const messages: ModelMessage[] = [
+      { role: 'assistant', content: [call('a')] },
+      { role: 'tool', content: [result('a')] },
+    ];
+    expect(dropDanglingToolCalls(messages)).toEqual(messages);
+  });
+
+  it('drops a tool call the stop cut off before its result', () => {
+    const messages: ModelMessage[] = [
+      { role: 'assistant', content: [{ type: 'text', text: 'clicking' }, call('a'), call('b')] },
+      { role: 'tool', content: [result('a')] },
+    ];
+
+    const kept = dropDanglingToolCalls(messages);
+    expect(kept).toHaveLength(2);
+    expect(kept[0].content).toEqual([{ type: 'text', text: 'clicking' }, call('a')]);
+  });
+
+  it('removes an assistant message that was nothing but an unanswered call', () => {
+    const messages: ModelMessage[] = [
+      { role: 'assistant', content: 'on it' },
+      { role: 'assistant', content: [call('a')] },
+    ];
+
+    expect(dropDanglingToolCalls(messages)).toEqual([{ role: 'assistant', content: 'on it' }]);
   });
 });

@@ -30,15 +30,17 @@ function StopNote({
   stop: NonNullable<DisplayMessage['stop']>;
   hasText: boolean;
 }) {
-  const reason = stop.hitStepLimit
-    ? `Hit the ${stop.steps}-step limit — the model was still working. Ask it to continue, or narrow the task.`
-    : stop.finishReason === 'length'
-      ? 'The model hit its output token limit mid-response.'
-      : stop.finishReason === 'content-filter'
-        ? 'The provider blocked the response (content filter).'
-        : !hasText
-          ? 'The model ran tools but returned no answer. Often means the context filled up — try a narrower ask.'
-          : `Model stopped early (finishReason: ${stop.finishReason}).`;
+  const reason = stop.aborted
+    ? 'Stopped by you. What finished before the stop is kept — send another message to pick it back up.'
+    : stop.hitStepLimit
+      ? `Hit the ${stop.steps}-step limit — the model was still working. Ask it to continue, or narrow the task.`
+      : stop.finishReason === 'length'
+        ? 'The model hit its output token limit mid-response.'
+        : stop.finishReason === 'content-filter'
+          ? 'The provider blocked the response (content filter).'
+          : !hasText
+            ? 'The model ran tools but returned no answer. Often means the context filled up — try a narrower ask.'
+            : `Model stopped early (finishReason: ${stop.finishReason}).`;
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-fg-tertiary">

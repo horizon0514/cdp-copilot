@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { ArrowUp, Settings2, Sparkles } from 'lucide-react';
+import { ArrowUp, Settings2, Sparkles, Square } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
@@ -50,6 +50,7 @@ function Composer({
   isStreaming,
   canSend,
   onSubmit,
+  onStop,
 }: {
   input: string;
   setInput: (v: string) => void;
@@ -57,6 +58,7 @@ function Composer({
   isStreaming: boolean;
   canSend: boolean;
   onSubmit: (e: FormEvent) => void;
+  onStop: () => void;
 }) {
   return (
     <form className="w-full" onSubmit={onSubmit}>
@@ -100,6 +102,8 @@ function Composer({
                   <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
                 </span>
                 Agent running
+                <span className="mx-0.5 text-line-strong">·</span>
+                <Kbd>esc</Kbd> stop
               </span>
             ) : (
               <>
@@ -109,16 +113,29 @@ function Composer({
               </>
             )}
           </span>
-          <Button
-            type="submit"
-            size="icon-sm"
-            variant={canSend ? 'default' : 'subtle'}
-            disabled={!canSend}
-            aria-label="Send"
-            className={cn(canSend && 'shadow-sm')}
-          >
-            <ArrowUp className="size-3.5" strokeWidth={2.5} />
-          </Button>
+          {isStreaming ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="danger"
+              onClick={onStop}
+              aria-label="Stop the agent"
+              title="Stop (Esc)"
+            >
+              <Square className="size-2.5 fill-current" strokeWidth={0} />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon-sm"
+              variant={canSend ? 'default' : 'subtle'}
+              disabled={!canSend}
+              aria-label="Send"
+              className={cn(canSend && 'shadow-sm')}
+            >
+              <ArrowUp className="size-3.5" strokeWidth={2.5} />
+            </Button>
+          )}
         </div>
       </div>
     </form>
@@ -131,6 +148,7 @@ export default function App() {
     messages,
     isStreaming,
     sendMessage,
+    stopAgent,
     threadId,
     threadList,
     hydrated,
@@ -159,6 +177,17 @@ export default function App() {
       void chrome.storage.session.remove('pendingPrompt');
     });
   }, []);
+
+  // Escape stops the agent from anywhere in the panel — the composer is
+  // disabled while it runs, so a key handler on the textarea would never fire.
+  useEffect(() => {
+    if (!isStreaming) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') stopAgent();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isStreaming, stopAgent]);
 
   useEffect(() => {
     const el = inputRef.current;
@@ -238,6 +267,7 @@ export default function App() {
                   isStreaming={isStreaming}
                   canSend={canSend}
                   onSubmit={handleSubmit}
+                  onStop={stopAgent}
                 />
               </div>
               <EmptySuggestions onPick={pickSuggestion} />
@@ -254,6 +284,7 @@ export default function App() {
                     isStreaming={isStreaming}
                     canSend={canSend}
                     onSubmit={handleSubmit}
+                    onStop={stopAgent}
                   />
                 </div>
               </div>
