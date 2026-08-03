@@ -3,6 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("pagehand:site-locale");
+          var preferZh =
+            saved === "zh" ||
+            (saved !== "en" &&
+              (navigator.languages || [navigator.language || "en"]).some(function (l) {
+                return String(l).toLowerCase().indexOf("zh") === 0;
+              }));
+          if (preferZh) location.replace("/zh" + location.search + location.hash);
+        } catch (_) {}
+      })();
+    </script>
     <title>Pagehand — AI that works the current tab</title>
     <meta
       name="description"
@@ -14,6 +28,11 @@
       content="AI that reads and automates the current Chrome tab via CDP. Side panel. Your keys. No cloud middleman."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <link rel="canonical" href="https://pagehand.vercel.app/" />
+    <link rel="alternate" hreflang="en" href="https://pagehand.vercel.app/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://pagehand.vercel.app/zh" />
+    <link rel="alternate" hreflang="x-default" href="https://pagehand.vercel.app/" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,6 +41,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/locale.js"></script>
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -56,6 +76,11 @@
             <a class="hide-sm" href="#how">How it works</a>
             <a class="hide-sm" href="#privacy">Privacy</a>
             <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+            <div class="lang-switch" role="group" aria-label="Language">
+              <a href="/" hreflang="en" data-locale="en" aria-current="page">EN</a>
+              <span aria-hidden="true">/</span>
+              <a href="/zh" hreflang="zh-CN" data-locale="zh">中文</a>
+            </div>
           </div>
         </nav>
 

@@ -8,6 +8,10 @@
       name="description"
       content="Privacy policy for the Pagehand Chrome extension."
     />
+    <link rel="canonical" href="https://pagehand.vercel.app/privacy" />
+    <link rel="alternate" hreflang="en" href="https://pagehand.vercel.app/privacy" />
+    <link rel="alternate" hreflang="zh-CN" href="https://pagehand.vercel.app/zh/privacy" />
+    <link rel="alternate" hreflang="x-default" href="https://pagehand.vercel.app/privacy" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -29,6 +33,11 @@
         <div class="nav-links">
           <a href="/">Home</a>
           <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+          <div class="lang-switch" role="group" aria-label="Language">
+            <a href="/privacy" hreflang="en" data-locale="en" aria-current="page">EN</a>
+            <span aria-hidden="true">/</span>
+            <a href="/zh/privacy" hreflang="zh-CN" data-locale="zh">中文</a>
+          </div>
         </div>
       </nav>
 
@@ -135,6 +144,7 @@
       </div>
     </footer>
 
+    <script src="/locale.js"></script>
     <script>
       document.getElementById("y").textContent = String(new Date().getFullYear());
     </script>
