@@ -58,6 +58,7 @@
             Pagehand
           </a>
           <div class="nav-links">
+            <a class="hide-sm" href="#install">安装</a>
             <a class="hide-sm" href="#how">原理</a>
             <a class="hide-sm" href="#privacy">隐私</a>
             <a href="https://github.com/horizon0514/pagehand">GitHub</a>
@@ -83,12 +84,12 @@
             <a
               class="btn btn-primary"
               id="install-cta"
-              href="https://github.com/horizon0514/pagehand#setup"
+              href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip"
             >
-              从源码安装
+              下载安装包
             </a>
-            <a class="btn btn-ghost" href="https://github.com/horizon0514/pagehand">
-              查看 GitHub
+            <a class="btn btn-ghost" href="#install">
+              安装说明
             </a>
           </div>
           <p class="hero-meta">Manifest V3 · chrome.debugger · 自带 OpenAI / Anthropic / DeepSeek 密钥</p>
@@ -97,6 +98,60 @@
     </header>
 
     <main>
+      <section class="section" id="install">
+        <div class="wrap">
+          <p class="section-label">安装</p>
+          <h2>几步就能装进 Chrome。</h2>
+          <p class="section-lead">
+            不用装 Node，也不用自己编译。下载 Release 压缩包，解压后作为「已解压的扩展程序」加载即可。
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>下载</h3>
+              <p>
+                从最新 GitHub Release 下载
+                <a href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip">pagehand.zip</a>。
+              </p>
+            </li>
+            <li>
+              <h3>解压</h3>
+              <p>
+                解压到一个你会长期保留的文件夹。Chrome 每次启动都会读取这个文件夹，装完后不要删掉。
+              </p>
+            </li>
+            <li>
+              <h3>打开扩展程序页</h3>
+              <p>
+                在 Chrome 地址栏输入 <kbd>chrome://extensions</kbd>，回车。
+              </p>
+            </li>
+            <li>
+              <h3>打开开发者模式</h3>
+              <p>在页面右上角打开 <strong>开发者模式</strong> 开关。</p>
+            </li>
+            <li>
+              <h3>加载已解压的扩展程序</h3>
+              <p>
+                点击 <strong>加载已解压的扩展程序</strong>，选中刚才解压出的文件夹
+                （里面应有 <code>manifest.json</code>）。
+              </p>
+            </li>
+            <li>
+              <h3>打开 Pagehand</h3>
+              <p>
+                点击工具栏拼图图标，固定 Pagehand，打开侧栏，在设置里填入你的 API 密钥即可开始。
+              </p>
+            </li>
+          </ol>
+          <p class="install-note">
+            以后更新：下载新的 zip，覆盖原文件夹内容，再到
+            <kbd>chrome://extensions</kbd> 点一下刷新图标。
+            想自己从源码构建？
+            <a href="https://github.com/horizon0514/pagehand#setup">看 GitHub 说明</a>。
+          </p>
+        </div>
+      </section>
+
       <section class="section" id="how">
         <div class="wrap">
           <p class="section-label">原理</p>
