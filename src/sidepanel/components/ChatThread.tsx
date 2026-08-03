@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { ArrowUpRight, FileText, MousePointer2, Sparkles, TerminalSquare } from 'lucide-react';
+import { ArrowUpRight, FileText, MousePointer2, TerminalSquare } from 'lucide-react';
 import { DisplayMessage } from '../state/conversationStore';
 import { useT } from '../i18n/useT';
 import type { MessageKey } from '../../lib/i18n';
 import MessageBubble from './MessageBubble';
+import BrandMark from './BrandMark';
 import { SectionLabel } from './ui/label';
 
 const SUGGESTIONS: { icon: typeof FileText; key: MessageKey }[] = [
@@ -16,9 +17,10 @@ export function EmptyIntro() {
   const t = useT();
   return (
     <div className="animate-enter w-full max-w-[320px] text-center">
-      <div className="mx-auto mb-3 grid size-9 place-items-center rounded-lg bg-accent-soft text-accent ring-1 ring-accent-line">
-        <Sparkles className="size-4" strokeWidth={2.25} />
-      </div>
+      <BrandMark size={36} className="mx-auto mb-3" />
+      <p className="mb-1.5 text-[10px] font-semibold tracking-[0.16em] text-fg-tertiary uppercase">
+        Pagehand
+      </p>
       <h2 className="text-[14px] font-semibold tracking-[-0.02em] text-fg">{t('empty.title')}</h2>
       <p className="mt-1.5 text-[12.5px] leading-[1.5] text-fg-secondary">{t('empty.body')}</p>
     </div>
@@ -40,7 +42,7 @@ export function EmptySuggestions({ onPick }: { onPick: (text: string) => void })
               onClick={() => onPick(text)}
               className="group flex h-9 cursor-pointer items-center gap-2.5 rounded-lg border border-line bg-surface px-3 text-left text-[12.5px] text-fg-secondary outline-none transition-[background-color,border-color,color] duration-200 hover:border-line-strong hover:bg-surface-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent-line"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-bg text-fg-tertiary transition-colors duration-200 group-hover:bg-accent-soft group-hover:text-accent">
+              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-bg text-fg-tertiary transition-colors duration-200 group-hover:bg-accent-soft group-hover:text-accent-text">
                 <Icon className="size-3.5" />
               </span>
               <span className="min-w-0 flex-1 truncate">{text}</span>

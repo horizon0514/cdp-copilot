@@ -101,7 +101,7 @@ export default function MessageBubble({
   if (isUser) {
     return (
       <div className="animate-enter flex justify-end">
-        <div className="max-w-[85%] rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[13px] leading-[1.5] break-words whitespace-pre-wrap text-fg shadow-[0_1px_0_rgba(37,99,235,0.06)]">
+        <div className="max-w-[85%] rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[13px] leading-[1.5] break-words whitespace-pre-wrap text-fg shadow-[0_1px_0_rgba(214,242,92,0.08)]">
           {message.text}
         </div>
       </div>

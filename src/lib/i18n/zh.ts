@@ -4,6 +4,7 @@ import type { Messages } from './en';
 export const zh: Messages = {
   'app.loading': '加载中',
   'app.settings': '设置',
+  'app.toolbar': '对话操作',
   'app.message': '消息',
   'composer.placeholder': '随便问点什么 — 用 @ 引用标签页',
   'composer.placeholderStreaming': '输入以接管当前任务…',
