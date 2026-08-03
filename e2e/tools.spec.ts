@@ -102,7 +102,7 @@ test('evaluate_script runs in the page and returns JSON', async ({ panel, openTa
     function: '() => ({ title: document.title, buttons: document.querySelectorAll("button").length })',
   });
 
-  expect(result.value).toEqual({ title: 'cdp-copilot e2e fixture', buttons: 1 });
+  expect(result.value).toEqual({ title: 'pagehand e2e fixture', buttons: 1 });
 });
 
 test('evaluate_script surfaces a page exception as a tool error', async ({ panel, openTarget }) => {

@@ -142,7 +142,7 @@ export function installChromeMock(): ChromeMock {
 
     runtime: {
       connect: () => ({
-        name: 'cdp-copilot-sidepanel',
+        name: 'pagehand-sidepanel',
         onDisconnect: { addListener: () => {}, removeListener: () => {} },
         disconnect: () => {},
       }),

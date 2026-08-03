@@ -3,6 +3,7 @@ export const en = {
   // App shell / composer
   'app.loading': 'Loading',
   'app.settings': 'Settings',
+  'app.toolbar': 'Chat actions',
   'app.message': 'Message',
   'composer.placeholder': 'Ask anything — @ to reference a tab',
   'composer.placeholderStreaming': 'Type to redirect the agent…',

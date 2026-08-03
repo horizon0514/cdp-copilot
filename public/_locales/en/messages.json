@@ -1,11 +1,11 @@
 {
   "extName": {
-    "message": "cdp-copilot"
+    "message": "Pagehand"
   },
   "extDescription": {
-    "message": "AI copilot that reads and automates the current tab via the Chrome DevTools Protocol."
+    "message": "AI that reads and automates the current tab via the Chrome DevTools Protocol."
   },
   "commandOpenPanel": {
-    "message": "Open the cdp-copilot side panel"
+    "message": "Open the Pagehand side panel"
   }
 }

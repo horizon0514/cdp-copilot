@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installChromeMock, type ChromeMock } from '../../test/chromeMock';
 import { idbClearAll } from './idb';
 import {
+  isUntitledThreadTitle,
   loadThreadStore,
   makeEmptyThread,
   sanitizeThreadForStorage,
@@ -48,11 +49,18 @@ describe('chatThreads storage (IndexedDB)', () => {
 
   it('round-trips threads through IndexedDB', async () => {
     const empty = makeEmptyThread();
+    expect(empty.title).toBe('');
+    expect(isUntitledThreadTitle(empty.title)).toBe(true);
+    expect(isUntitledThreadTitle('New chat')).toBe(true);
+    expect(isUntitledThreadTitle('新对话')).toBe(true);
+    expect(isUntitledThreadTitle('Summarize this')).toBe(false);
+
     await saveThreadStore({ threads: [empty], activeThreadId: empty.id });
 
     const loaded = await loadThreadStore();
     expect(loaded.activeThreadId).toBe(empty.id);
     expect(loaded.threads).toHaveLength(1);
+    expect(loaded.threads[0].title).toBe('');
   });
 
   it('upserts the active thread and derives a title from the first user message', async () => {

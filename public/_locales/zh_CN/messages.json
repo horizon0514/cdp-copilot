@@ -1,11 +1,11 @@
 {
   "extName": {
-    "message": "cdp-copilot"
+    "message": "Pagehand"
   },
   "extDescription": {
     "message": "通过 Chrome DevTools Protocol 读取并自动化当前标签页的 AI 助手。"
   },
   "commandOpenPanel": {
-    "message": "打开 cdp-copilot 侧栏"
+    "message": "打开 Pagehand 侧栏"
   }
 }

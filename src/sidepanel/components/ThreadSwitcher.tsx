@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, History, MessageSquarePlus, Plus, X } from 'lucide-react';
+import { Check, MessageSquarePlus, MessagesSquare, SlidersHorizontal, SquarePen, X } from 'lucide-react';
 import { Button } from './ui/button';
+import HeaderIconButton from './HeaderIconButton';
 import { cn } from '../lib/utils';
 import { useI18n, useT } from '../i18n/useT';
 import type { ThreadSummary } from '../state/conversationStore';
 import type { Locale } from '../../lib/i18n';
+import { isUntitledThreadTitle } from '../../lib/storage/chatThreads';
+
+const ICON_STROKE = 1.75;
 
 function formatWhen(ts: number, locale: Locale): string {
   const tag = locale === 'zh' ? 'zh-CN' : 'en';
@@ -17,11 +21,20 @@ function formatWhen(ts: number, locale: Locale): string {
   return d.toLocaleDateString(tag, { month: 'short', day: 'numeric' });
 }
 
+function displayThreadTitle(
+  title: string | undefined,
+  t: (key: 'thread.newChat') => string,
+): string {
+  return isUntitledThreadTitle(title) ? t('thread.newChat') : title!;
+}
+
 export default function ThreadSwitcher({
   threadId,
   threadList,
   isStreaming,
   blocked = false,
+  settingsOpen = false,
+  onToggleSettings,
   onNewChat,
   onSwitch,
 }: {
@@ -30,6 +43,8 @@ export default function ThreadSwitcher({
   isStreaming: boolean;
   /** Hide/close the history sheet (e.g. while settings is open). */
   blocked?: boolean;
+  settingsOpen?: boolean;
+  onToggleSettings?: () => void;
   onNewChat: () => void;
   onSwitch: (id: string) => void;
 }) {
@@ -38,8 +53,8 @@ export default function ThreadSwitcher({
   const [open, setOpen] = useState(false);
   const [shell, setShell] = useState<HTMLElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const current = threadList.find((t) => t.id === threadId);
-  const title = current?.title ?? t('thread.newChat');
+  const current = threadList.find((row) => row.id === threadId);
+  const title = displayThreadTitle(current?.title, t);
   const sheetOpen = open && !blocked;
 
   useEffect(() => {
@@ -101,7 +116,7 @@ export default function ThreadSwitcher({
               'disabled:cursor-not-allowed disabled:opacity-40',
             )}
           >
-            <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent">
+            <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent-text">
               <MessageSquarePlus className="size-3.5" />
             </span>
             {t('thread.newChat')}
@@ -142,13 +157,13 @@ export default function ThreadSwitcher({
                           active ? 'font-medium text-fg' : 'text-fg',
                         )}
                       >
-                        {thread.title}
+                        {displayThreadTitle(thread.title, t)}
                       </div>
                       <div className="mt-0.5 text-[10.5px] text-fg-tertiary">
                         {formatWhen(thread.updatedAt, locale)}
                       </div>
                     </div>
-                    {active && <Check className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />}
+                    {active && <Check className="mt-0.5 size-3.5 shrink-0 text-accent-text" aria-hidden />}
                   </button>
                 );
               })}
@@ -166,11 +181,16 @@ export default function ThreadSwitcher({
         {title}
       </h1>
 
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          type="button"
-          variant={sheetOpen ? 'subtle' : 'ghost'}
-          size="icon-sm"
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-0.5 rounded-[10px] border border-line bg-bg/70 p-0.5',
+          'shadow-[inset_0_1px_0_rgba(232,239,230,0.04)]',
+        )}
+        role="toolbar"
+        aria-label={t('app.toolbar')}
+      >
+        <HeaderIconButton
+          active={sheetOpen}
           disabled={isStreaming || blocked}
           aria-label={t('thread.history')}
           aria-expanded={sheetOpen}
@@ -178,19 +198,31 @@ export default function ThreadSwitcher({
           title={t('thread.history')}
           onClick={() => setOpen((v) => !v)}
         >
-          <History className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
+          <MessagesSquare className="size-[15px]" strokeWidth={ICON_STROKE} />
+        </HeaderIconButton>
+
+        <HeaderIconButton
+          emphasize
           disabled={isStreaming || blocked}
           aria-label={t('thread.newChat')}
           title={t('thread.newChat')}
           onClick={startNew}
         >
-          <Plus className="size-3.5" strokeWidth={2.25} />
-        </Button>
+          <SquarePen className="size-[15px]" strokeWidth={ICON_STROKE} />
+        </HeaderIconButton>
+
+        <span className="mx-0.5 h-3.5 w-px shrink-0 bg-line-strong/90" aria-hidden />
+
+        <HeaderIconButton
+          active={settingsOpen}
+          disabled={isStreaming}
+          aria-label={t('app.settings')}
+          aria-pressed={settingsOpen}
+          title={t('app.settings')}
+          onClick={onToggleSettings}
+        >
+          <SlidersHorizontal className="size-[15px]" strokeWidth={ICON_STROKE} />
+        </HeaderIconButton>
       </div>
 
       {sheet}

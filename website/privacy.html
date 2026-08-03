@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Pagehand</title>
+    <meta
+      name="description"
+      content="Privacy policy for the Pagehand Chrome extension."
+    />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&family=Syne:wght@650;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="/">
+          <img src="/icon.png" alt="" width="28" height="28" />
+          Pagehand
+        </a>
+        <div class="nav-links">
+          <a href="/">Home</a>
+          <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+        </div>
+      </nav>
+
+      <article class="legal">
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: August 3, 2026</p>
+
+        <p>
+          Pagehand (“the Extension”) is a Chrome extension that helps you read and
+          automate the current browser tab using the Chrome DevTools Protocol.
+          This policy explains what data the Extension handles and what it does
+          <em>not</em> do.
+        </p>
+
+        <h2>1. No Pagehand backend</h2>
+        <p>
+          Pagehand does not operate a cloud service that receives your chats,
+          page content, or API keys. There is no Pagehand account system and no
+          Pagehand analytics/telemetry endpoint.
+        </p>
+
+        <h2>2. Data stored on your device</h2>
+        <p>The Extension stores the following locally in your Chrome profile:</p>
+        <ul>
+          <li>
+            <strong>LLM settings</strong> — provider choice, model name, base URL
+            (if custom), and API key, in <code>chrome.storage.local</code>.
+            Keys are stored unencrypted in the browser profile and are not synced
+            to your Google account via Chrome Sync.
+          </li>
+          <li>
+            <strong>Chat threads</strong> — conversation history (including any
+            screenshots kept in the thread) in IndexedDB on this device.
+          </li>
+          <li>
+            <strong>Locale preference</strong> — your UI language choice.
+          </li>
+        </ul>
+
+        <h2>3. Data sent over the network</h2>
+        <p>
+          When you chat with the agent, prompts, page-derived context (for example
+          accessibility snapshots, console/network excerpts, and screenshots you
+          ask it to take), and tool results are sent to the large-language-model
+          provider <em>you</em> configured — such as DeepSeek, OpenAI, Anthropic,
+          or another OpenAI-compatible endpoint. Pagehand does not interpose a
+          proxy; requests go from your browser to that provider.
+        </p>
+        <p>
+          Those providers’ own privacy policies govern data once it reaches them.
+        </p>
+
+        <h2>4. Permissions and tab access</h2>
+        <p>
+          Pagehand uses Chrome’s <code>debugger</code> permission (Chrome DevTools
+          Protocol) to inspect and control the tab it is attached to. While
+          attached, Chrome displays a persistent banner:
+          “Pagehand is debugging this browser.” That banner is a Chrome safety
+          feature and cannot be suppressed by the Extension.
+        </p>
+        <p>
+          Default host permissions are limited to the built-in provider API hosts.
+          Broad site access (<code>https://*/*</code>, <code>http://localhost/*</code>)
+          is optional and requested only when needed (for example a custom provider
+          base URL).
+        </p>
+
+        <h2>5. What we do not collect</h2>
+        <ul>
+          <li>No crash reports or usage analytics sent to Pagehand</li>
+          <li>No advertising identifiers</li>
+          <li>No sale of personal information</li>
+        </ul>
+
+        <h2>6. Children</h2>
+        <p>
+          The Extension is not directed at children under 13, and we do not
+          knowingly collect personal information from children.
+        </p>
+
+        <h2>7. Changes</h2>
+        <p>
+          If this policy changes in a material way, the “Last updated” date above
+          will be revised. Continued use of the Extension after an update means
+          you accept the revised policy.
+        </p>
+
+        <h2>8. Contact</h2>
+        <p>
+          Questions about this policy: open an issue on
+          <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+          or email the maintainer listed on that repository.
+        </p>
+      </article>
+    </div>
+
+    <footer class="footer">
+      <div class="wrap footer-row">
+        <span>© <span id="y"></span> Pagehand</span>
+        <nav aria-label="Footer">
+          <a href="/">Home</a>
+          <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("y").textContent = String(new Date().getFullYear());
+    </script>
+  </body>
+</html>

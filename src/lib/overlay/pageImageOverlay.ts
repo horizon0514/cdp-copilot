@@ -5,7 +5,7 @@ import { sessionRegistry } from '../debugger-bridge/sessionRegistry';
  * chrome.scripting serializes this function by toString().
  */
 export function installPageImageLightbox(src: string, alt: string): void {
-  const ROOT_ID = 'cdp-copilot-image-lightbox';
+  const ROOT_ID = 'pagehand-image-lightbox';
   document.getElementById(ROOT_ID)?.remove();
 
   const MIN = 0.25;

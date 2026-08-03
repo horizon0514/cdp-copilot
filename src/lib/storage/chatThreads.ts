@@ -7,6 +7,16 @@ const IDB_KEY = 'threads';
 const LEGACY_CHROME_KEY = 'cdp-copilot:threads';
 export const MAX_THREADS = 20;
 
+/** Persisted marker for a thread that has no user message yet. */
+export const UNTITLED_THREAD_TITLE = '';
+
+/** Legacy / locale-frozen placeholders that should render via i18n. */
+const UNTITLED_TITLE_ALIASES = new Set(['', 'New chat', '新对话']);
+
+export function isUntitledThreadTitle(title: string | null | undefined): boolean {
+  return title == null || UNTITLED_TITLE_ALIASES.has(title);
+}
+
 export interface StoredThread {
   id: string;
   title: string;
@@ -23,7 +33,7 @@ export interface ThreadStoreSnapshot {
 
 function titleFromMessages(messages: DisplayMessage[]): string {
   const first = messages.find((m) => m.role === 'user' && m.text.trim());
-  if (!first) return 'New chat';
+  if (!first) return UNTITLED_THREAD_TITLE;
   const t = first.text.trim().replace(/\s+/g, ' ');
   return t.length > 48 ? `${t.slice(0, 48)}…` : t;
 }
@@ -43,7 +53,7 @@ export function makeEmptyThread(): StoredThread {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
-    title: 'New chat',
+    title: UNTITLED_THREAD_TITLE,
     createdAt: now,
     updatedAt: now,
     messages: [],

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { ArrowUp, Settings2, Sparkles, Square } from 'lucide-react';
+import { ArrowUp, Square } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
@@ -7,6 +7,7 @@ import SettingsPanel from './components/SettingsPanel';
 import BoundTabBar from './components/BoundTabBar';
 import ThreadSwitcher from './components/ThreadSwitcher';
 import TabMentionMenu from './components/TabMentionMenu';
+import BrandMark from './components/BrandMark';
 import { useTabMentions } from './hooks/useTabMentions';
 import { useT } from './i18n/useT';
 import { Button } from './components/ui/button';
@@ -259,17 +260,14 @@ export default function App() {
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-bg" data-app-shell>
       <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur-sm">
-        <span
-          className="grid size-5 shrink-0 place-items-center rounded-[5px] bg-accent text-accent-fg shadow-[0_0_0_1px_rgba(37,99,235,0.25)]"
-          aria-hidden
-        >
-          <Sparkles className="size-3" strokeWidth={2.5} />
-        </span>
+        <BrandMark size={20} aria-hidden />
         <ThreadSwitcher
           threadId={threadId}
           threadList={threadList}
           isStreaming={isStreaming}
           blocked={showSettings}
+          settingsOpen={showSettings}
+          onToggleSettings={() => setShowSettings((s) => !s)}
           onNewChat={() => {
             void newChat();
           }}
@@ -277,16 +275,6 @@ export default function App() {
             void switchThread(id);
           }}
         />
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={cn(showSettings && 'bg-surface-active text-fg')}
-          onClick={() => setShowSettings((s) => !s)}
-          aria-label={t('app.settings')}
-          aria-pressed={showSettings}
-        >
-          <Settings2 className="size-3.5" />
-        </Button>
       </header>
 
       {showSettings ? (
