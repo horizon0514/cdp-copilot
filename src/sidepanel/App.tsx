@@ -4,10 +4,11 @@ import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
-import TabPicker from './components/TabPicker';
+import BoundTabBar from './components/BoundTabBar';
 import ThreadSwitcher from './components/ThreadSwitcher';
 import TabMentionMenu from './components/TabMentionMenu';
 import { useTabMentions } from './hooks/useTabMentions';
+import { useT } from './i18n/useT';
 import { Button } from './components/ui/button';
 import { Textarea } from './components/ui/textarea';
 import { cn } from './lib/utils';
@@ -26,8 +27,9 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 function BootSkeleton() {
+  const t = useT();
   return (
-    <div className="flex h-screen flex-col bg-bg" aria-busy="true" aria-label="Loading">
+    <div className="flex h-screen flex-col bg-bg" aria-busy="true" aria-label={t('app.loading')}>
       <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3">
         <div className="skeleton size-5" />
         <div className="skeleton h-3.5 w-28" />
@@ -62,6 +64,7 @@ function Composer({
   onSubmit: (e: FormEvent) => void;
   onStop: () => void;
 }) {
+  const t = useT();
   const mentions = useTabMentions(input, setInput, inputRef);
 
   return (
@@ -69,6 +72,7 @@ function Composer({
       {mentions.open && (
         <TabMentionMenu
           items={mentions.items}
+          query={mentions.query}
           activeIndex={mentions.activeIndex}
           onHover={mentions.setActiveIndex}
           onPick={mentions.choose}
@@ -82,7 +86,7 @@ function Composer({
         )}
       >
         <label htmlFor="composer-input" className="sr-only">
-          Message
+          {t('app.message')}
         </label>
         <Textarea
           id="composer-input"
@@ -91,7 +95,7 @@ function Composer({
           value={input}
           // Deliberately usable mid-run: sending takes the turn over.
           placeholder={
-            isStreaming ? 'Type to redirect the agent…' : 'Ask anything — @ to reference a tab'
+            isStreaming ? t('composer.placeholderStreaming') : t('composer.placeholder')
           }
           onChange={(e) => {
             setInput(e.target.value);
@@ -123,23 +127,23 @@ function Composer({
                   <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
                   <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
                 </span>
-                {canSend ? 'Takes over' : 'Agent running'}
+                {canSend ? t('composer.takesOver') : t('composer.agentRunning')}
                 <span className="mx-0.5 text-line-strong">·</span>
                 {canSend ? (
                   <>
-                    <Kbd>↵</Kbd> redirect
+                    <Kbd>↵</Kbd> {t('composer.redirectAction')}
                   </>
                 ) : (
                   <>
-                    <Kbd>esc</Kbd> stop
+                    <Kbd>esc</Kbd> {t('composer.stopAction')}
                   </>
                 )}
               </span>
             ) : (
               <>
-                <Kbd>↵</Kbd> send
+                <Kbd>↵</Kbd> {t('composer.sendAction')}
                 <span className="mx-0.5 text-line-strong">·</span>
-                <Kbd>⇧↵</Kbd> newline
+                <Kbd>⇧↵</Kbd> {t('composer.newlineAction')}
               </>
             )}
           </span>
@@ -150,8 +154,8 @@ function Composer({
                 size="icon-sm"
                 variant="danger"
                 onClick={onStop}
-                aria-label="Stop the agent"
-                title="Stop (Esc)"
+                aria-label={t('composer.stop')}
+                title={t('composer.stopTitle')}
               >
                 <Square className="size-2.5 fill-current" strokeWidth={0} />
               </Button>
@@ -163,7 +167,7 @@ function Composer({
                 size="icon-sm"
                 variant={canSend ? 'default' : 'subtle'}
                 disabled={!canSend}
-                aria-label={isStreaming ? 'Send, taking over from the agent' : 'Send'}
+                aria-label={isStreaming ? t('composer.sendTakeover') : t('composer.sendLabel')}
                 className={cn(canSend && 'shadow-sm')}
               >
                 <ArrowUp className="size-3.5" strokeWidth={2.5} />
@@ -177,6 +181,7 @@ function Composer({
 }
 
 export default function App() {
+  const t = useT();
   const { settings, loading, save } = useSettings();
   const {
     messages,
@@ -206,11 +211,11 @@ export default function App() {
     void chrome.storage.session.get('pendingPrompt').then((result) => {
       const pending = result.pendingPrompt as PendingPrompt | undefined;
       if (pending?.selectionText) {
-        setInput(`Regarding this selected text: "${pending.selectionText}"\n`);
+        setInput(t('composer.selectionPrompt', { text: pending.selectionText }));
       }
       void chrome.storage.session.remove('pendingPrompt');
     });
-  }, []);
+  }, [t]);
 
   // Escape stops the agent from anywhere in the panel — the composer is
   // disabled while it runs, so a key handler on the textarea would never fire.
@@ -242,8 +247,8 @@ export default function App() {
   };
 
   const pickSuggestion = (text: string) => {
-    setInput(text);
-    inputRef.current?.focus();
+    void sendMessage(text);
+    setInput('');
   };
 
   if (loading || !hydrated) return <BootSkeleton />;
@@ -277,7 +282,7 @@ export default function App() {
           size="icon-sm"
           className={cn(showSettings && 'bg-surface-active text-fg')}
           onClick={() => setShowSettings((s) => !s)}
-          aria-label="Settings"
+          aria-label={t('app.settings')}
           aria-pressed={showSettings}
         >
           <Settings2 className="size-3.5" />
@@ -285,10 +290,10 @@ export default function App() {
       </header>
 
       {showSettings ? (
-        <SettingsPanel initial={settings} onSave={save} onClose={() => settings && setShowSettings(false)} />
+        <SettingsPanel initial={settings} onSave={save} onClose={() => setShowSettings(false)} />
       ) : (
         <>
-          <TabPicker />
+          <BoundTabBar />
 
           {isEmpty ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-3 py-6">

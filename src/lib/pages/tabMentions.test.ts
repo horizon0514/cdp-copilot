@@ -91,19 +91,31 @@ describe('filterPages', () => {
 });
 
 describe('buildTabContext', () => {
-  it('gives the model the ids it needs and leaves the decision to it', () => {
+  it('tells the model not to switch tabs just because of a mention', () => {
     const context = buildTabContext(
       [{ pageId: 42, label: 'juejin.cn' }],
       [page(42, 'https://juejin.cn/post/1', 'A Post')],
+      { boundPageId: 7 },
     );
 
     expect(context).toContain('pageId 42');
     expect(context).toContain('https://juejin.cn/post/1');
-    expect(context).toContain('select_page');
+    expect(context).toContain('bound to pageId 7');
+    expect(context).toContain('Do NOT call select_page just because');
+  });
+
+  it('inlines peeked page text when provided', () => {
+    const context = buildTabContext(
+      [{ pageId: 42, label: 'juejin.cn' }],
+      [page(42, 'https://juejin.cn/post/1', 'A Post')],
+      { boundPageId: 7, peeks: new Map([[42, 'Hello from the page']]) },
+    );
+    expect(context).toContain('Page text:');
+    expect(context).toContain('Hello from the page');
   });
 
   it('says so when the referenced tab has since been closed', () => {
-    const context = buildTabContext([{ pageId: 42, label: 'juejin.cn' }], []);
+    const context = buildTabContext([{ pageId: 42, label: 'juejin.cn' }], [], { boundPageId: null });
     expect(context).toContain('no longer open');
   });
 

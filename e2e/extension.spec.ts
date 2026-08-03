@@ -23,7 +23,8 @@ test('side panel renders without console errors', async ({ context, extensionId 
   page.on('pageerror', (e) => errors.push(e.message));
 
   await page.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`);
-  await expect(page.getByRole('heading', { name: 'cdp-copilot' })).toBeVisible();
+  // Fresh profile opens settings first — title is localized (en / zh).
+  await expect(page.getByRole('heading', { name: /^(Settings|设置)$/ })).toBeVisible();
 
   expect(errors).toEqual([]);
 });
@@ -33,8 +34,9 @@ test('shows settings first when no provider is configured', async ({ context, ex
   await page.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`);
 
   // A fresh profile has no stored key, so the panel must ask for one rather
-  // than presenting a chat box that cannot work.
-  await expect(page.getByLabel(/API key/i)).toBeVisible();
+  // than presenting a chat box that cannot work. Prefer the textbox role so
+  // the "Show API key" toggle (same /API key/ label match) doesn't collide.
+  await expect(page.getByRole('textbox', { name: /API key|API 密钥/i })).toBeVisible();
 });
 
 test('persists provider settings to chrome.storage.local', async ({ panel }) => {

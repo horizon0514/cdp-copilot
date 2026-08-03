@@ -5,9 +5,10 @@ const IS_E2E = process.env.VITE_E2E === 'true';
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'cdp-copilot',
+  name: '__MSG_extName__',
   version: pkg.version,
-  description: pkg.description,
+  description: '__MSG_extDescription__',
+  default_locale: 'en',
   icons: {
     16: 'icons/icon16.png',
     32: 'icons/icon32.png',
@@ -29,7 +30,7 @@ export default defineManifest({
   commands: {
     _execute_action: {
       suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
-      description: 'Open the cdp-copilot side panel',
+      description: '__MSG_commandOpenPanel__',
     },
   },
   background: {

@@ -35,11 +35,20 @@ export const new_page = tool({
 export const list_pages = tool({
   description: 'Lists all open pages (tabs).',
   inputSchema: z.object({}),
-  execute: async () => ({ pages: await listPages() }),
+  execute: async () => {
+    // favIconUrl is decoration for the picker; in the transcript it is only
+    // a long URL per tab that the model has no use for.
+    const pages = (await listPages()).map(({ favIconUrl: _favIconUrl, ...page }) => page);
+    return { pages };
+  },
 });
 
 export const select_page = tool({
-  description: 'Selects a page as the target for future tool calls.',
+  description:
+    'Rebinds the agent to another tab for future tool calls. Do not use merely because a tab was ' +
+    '@-mentioned — mentions already carry identity (and often page text). Only call this when the ' +
+    'user asks to switch to or interact with that tab. bringToFront defaults to false; set true ' +
+    'only when the user should see the tab.',
   inputSchema: z.object({
     pageId: z.number().describe('The tab id from list_pages'),
     bringToFront: z.boolean().optional(),

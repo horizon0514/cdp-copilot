@@ -7,10 +7,12 @@ import { cn } from '../lib/utils';
 import { stabilizeStreamingMarkdown } from '../lib/stabilizeStreamingMarkdown';
 import { imagesFromToolCalls } from '../../lib/images/toolImages';
 import { DisplayMessage } from '../state/conversationStore';
+import { useI18n, useT } from '../i18n/useT';
 import ChatImages from './ChatImages';
 import ToolCallList from './ToolCallList';
 
 function ThinkingRow() {
+  const t = useT();
   return (
     <div className="flex items-center gap-1.5 text-[12px] text-fg-tertiary" aria-live="polite">
       <span className="flex gap-[3px]" aria-hidden>
@@ -18,7 +20,7 @@ function ThinkingRow() {
         <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
         <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
       </span>
-      Thinking
+      {t('message.thinking')}
     </div>
   );
 }
@@ -32,24 +34,26 @@ function StopNote({
   stop: NonNullable<DisplayMessage['stop']>;
   hasText: boolean;
 }) {
+  const { t, tp, locale } = useI18n();
   const reason = stop.aborted
-    ? 'Stopped by you. What finished before the stop is kept — send another message to pick it back up.'
+    ? t('message.stop.aborted')
     : stop.hitStepLimit
-      ? `Hit the ${stop.steps}-step limit — the model was still working. Ask it to continue, or narrow the task.`
+      ? t('message.stop.stepLimit', { steps: stop.steps })
       : stop.finishReason === 'length'
-        ? 'The model hit its output token limit mid-response.'
+        ? t('message.stop.length')
         : stop.finishReason === 'content-filter'
-          ? 'The provider blocked the response (content filter).'
+          ? t('message.stop.contentFilter')
           : !hasText
-            ? 'The model ran tools but returned no answer. Often means the context filled up — try a narrower ask.'
-            : `Model stopped early (finishReason: ${stop.finishReason}).`;
+            ? t('message.stop.noAnswer')
+            : t('message.stop.early', { reason: stop.finishReason });
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-fg-tertiary">
       <span className="text-caution">{reason}</span>
       <span className="tabular-nums">
-        {stop.steps} step{stop.steps === 1 ? '' : 's'}
-        {stop.totalTokens != null && ` · ${stop.totalTokens.toLocaleString()} tokens`}
+        {tp('message.steps', stop.steps)}
+        {stop.totalTokens != null &&
+          ` · ${t('message.tokens', { count: stop.totalTokens.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en') })}`}
       </span>
     </div>
   );
@@ -85,6 +89,7 @@ export default function MessageBubble({
   onContinue?: () => void;
   onRetry?: () => void;
 }) {
+  const t = useT();
   const hasText = message.text.trim().length > 0;
   const isUser = message.role === 'user';
   const chatImages = isUser ? [] : imagesFromToolCalls(message.toolCalls);
@@ -113,7 +118,7 @@ export default function MessageBubble({
       {message.toolCalls.length > 0 && <ToolCallList calls={message.toolCalls} />}
 
       {/* Screenshots live in the transcript so they stay visible after tools collapse. */}
-      <ChatImages images={chatImages} label="Screenshot" />
+      <ChatImages images={chatImages} label={t('message.screenshot')} />
 
       {hasText && <AssistantText text={message.text} streaming={Boolean(isStreaming)} />}
 
@@ -139,13 +144,13 @@ export default function MessageBubble({
           {showContinue && (
             <Button type="button" size="sm" variant="outline" onClick={onContinue}>
               <ArrowRight className="size-3" />
-              Continue
+              {t('message.continue')}
             </Button>
           )}
           {showRetry && (
             <Button type="button" size="sm" variant="outline" onClick={onRetry}>
               <RotateCw className="size-3" />
-              Retry
+              {t('message.retry')}
             </Button>
           )}
         </div>
