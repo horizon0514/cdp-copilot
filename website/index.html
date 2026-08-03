@@ -73,6 +73,7 @@
             Pagehand
           </a>
           <div class="nav-links">
+            <a class="hide-sm" href="#install">Install</a>
             <a class="hide-sm" href="#how">How it works</a>
             <a class="hide-sm" href="#privacy">Privacy</a>
             <a href="https://github.com/horizon0514/pagehand">GitHub</a>
@@ -98,12 +99,12 @@
             <a
               class="btn btn-primary"
               id="install-cta"
-              href="https://github.com/horizon0514/pagehand#setup"
+              href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip"
             >
-              Install from source
+              Download for Chrome
             </a>
-            <a class="btn btn-ghost" href="https://github.com/horizon0514/pagehand">
-              View on GitHub
+            <a class="btn btn-ghost" href="#install">
+              How to install
             </a>
           </div>
           <p class="hero-meta">Manifest V3 · chrome.debugger · BYO OpenAI / Anthropic / DeepSeek</p>
@@ -112,6 +113,65 @@
     </header>
 
     <main>
+      <section class="section" id="install">
+        <div class="wrap">
+          <p class="section-label">Install</p>
+          <h2>Load it into Chrome in a few clicks.</h2>
+          <p class="section-lead">
+            No Node, no build tools. Download the release zip, unpack it, and load the
+            folder as an unpacked extension.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>Download</h3>
+              <p>
+                Get
+                <a href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip">pagehand.zip</a>
+                from the latest GitHub Release.
+              </p>
+            </li>
+            <li>
+              <h3>Unzip</h3>
+              <p>
+                Extract the zip to a folder you will keep — Chrome reads that folder
+                every time it starts. Don’t delete it after installing.
+              </p>
+            </li>
+            <li>
+              <h3>Open Extensions</h3>
+              <p>
+                In Chrome’s address bar, go to <kbd>chrome://extensions</kbd>
+                and press Enter.
+              </p>
+            </li>
+            <li>
+              <h3>Turn on Developer mode</h3>
+              <p>Toggle <strong>Developer mode</strong> in the top-right corner of that page.</p>
+            </li>
+            <li>
+              <h3>Load unpacked</h3>
+              <p>
+                Click <strong>Load unpacked</strong>, then choose the folder you unzipped
+                (the one that contains <code>manifest.json</code>).
+              </p>
+            </li>
+            <li>
+              <h3>Open Pagehand</h3>
+              <p>
+                Click the puzzle icon in the toolbar, pin Pagehand, open the side panel,
+                and add your API key in Settings.
+              </p>
+            </li>
+          </ol>
+          <p class="install-note">
+            To update later: download the new zip, replace the folder contents, then click
+            the reload icon on <kbd>chrome://extensions</kbd>.
+            Prefer building yourself?
+            <a href="https://github.com/horizon0514/pagehand#setup">See the GitHub setup</a>.
+          </p>
+        </div>
+      </section>
+
       <section class="section" id="how">
         <div class="wrap">
           <p class="section-label">How it works</p>
