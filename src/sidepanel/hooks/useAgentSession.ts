@@ -3,7 +3,12 @@ import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
-import { getBoundTabId, ensureSession, releaseStaleBinding } from '../../lib/tools/context';
+import {
+  getBoundTabId,
+  ensureSession,
+  bindToActiveTab,
+  releaseStaleBinding,
+} from '../../lib/tools/context';
 import { createTurnSequencer, type TurnSequencer } from '../lib/turnSequencer';
 
 export function useAgentSession(settings: Settings | null) {
@@ -45,15 +50,18 @@ export function useAgentSession(settings: Settings | null) {
       // Read history from the store rather than a subscribed value: a turn that
       // takes over from another starts before React has re-rendered with the
       // previous turn's committed messages.
-      const history = useConversationStore.getState().modelMessages;
+      const { messages: shown, modelMessages: history } = useConversationStore.getState();
+      const opensTheThread = shown.length === 0;
+
       addUserMessage(text);
       const assistantId = startAssistantMessage();
       setStreaming(true);
 
-      // Bind the turn to the current session tab (or active tab on first use)
-      // and track any tabs new_page opens for cleanup when the turn ends.
+      // The first question of a conversation binds to whatever the user is
+      // looking at now; later ones stay on that tab even if focus moved, so a
+      // multi-step task isn't derailed by glancing at another tab.
       try {
-        const session = await ensureSession();
+        const session = opensTheThread ? await bindToActiveTab() : await ensureSession();
         agentTabTracker.beginTurn(session.getTabId());
       } catch {
         agentTabTracker.beginTurn(getBoundTabId());

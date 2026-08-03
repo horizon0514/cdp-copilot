@@ -120,6 +120,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     const state = get();
     if (state.isStreaming) return;
 
+    // Already on an untouched thread — there is nothing to start, and minting
+    // another would just stack blank "New chat" entries in the switcher.
+    if (state.threadId && state.messages.length === 0) return;
+
     if (state.hydrated && state.threadId) {
       await get().persist();
     }

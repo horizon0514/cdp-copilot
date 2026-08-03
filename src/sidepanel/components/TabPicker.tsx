@@ -23,29 +23,29 @@ function hostOf(tab: chrome.tabs.Tab | null): string {
  * which is only safe if the mismatch is impossible to miss.
  */
 export default function TabPicker() {
-  const [target, setTarget] = useState<chrome.tabs.Tab | null>(null);
+  const [boundTab, setBoundTab] = useState<chrome.tabs.Tab | null>(null);
   const [active, setActive] = useState<chrome.tabs.Tab | null>(null);
-  const [bound, setBound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const isStreaming = useConversationStore((s) => s.isStreaming);
+  /** An unstarted thread is bound to nothing: its first message picks the tab. */
+  const unstarted = useConversationStore((s) => s.messages.length === 0);
 
   const refresh = useCallback(async () => {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     setActive(activeTab ?? null);
 
     const targetId = sessionRegistry.getAttached()?.getTabId() ?? getBoundTabId();
-    if (targetId != null) {
-      try {
-        setTarget(await chrome.tabs.get(targetId));
-        setBound(true);
-        return;
-      } catch {
-        // Bound tab is gone — ensureSession will fall back to the active one.
-      }
+    if (targetId == null) {
+      setBoundTab(null);
+      return;
     }
-    setTarget(activeTab ?? null);
-    setBound(false);
+    try {
+      setBoundTab(await chrome.tabs.get(targetId));
+    } catch {
+      // Bound tab is gone — ensureSession will fall back to the active one.
+      setBoundTab(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -78,6 +78,8 @@ export default function TabPicker() {
     }
   };
 
+  const bound = !unstarted && boundTab !== null;
+  const target = bound ? boundTab : active;
   if (!target) return null;
 
   const drifted = bound && active?.id != null && active.id !== target.id;

@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installChromeMock, type ChromeMock } from '../../test/chromeMock';
 import { sessionRegistry } from '../debugger-bridge/sessionRegistry';
-import { ensureSession, getBoundTabId, releaseStaleBinding, setBoundTabId } from './context';
+import {
+  bindToActiveTab,
+  ensureSession,
+  getBoundTabId,
+  releaseStaleBinding,
+  setBoundTabId,
+} from './context';
 import { selectPage } from '../pages/PageManager';
 
 let mock: ChromeMock;
@@ -53,6 +59,29 @@ describe('ensureSession — tab binding (#4)', () => {
 
     const session = await ensureSession();
     expect(session.getTabId()).toBe(2);
+  });
+
+  it('opens a conversation on the tab in front of the user, wherever the last one was', async () => {
+    await ensureSession();
+    expect(getBoundTabId()).toBe(1);
+
+    mock.setTab(1, 'https://www.v2ex.com/', { active: false });
+    mock.setTab(2, 'https://example.com/', { active: true });
+
+    // First message of a new thread — the previous thread's tab has no claim.
+    const session = await bindToActiveTab();
+    expect(session.getTabId()).toBe(2);
+    expect(getBoundTabId()).toBe(2);
+  });
+
+  it('does not re-attach when the first message lands on the tab already bound', async () => {
+    const first = await ensureSession();
+    const second = await bindToActiveTab();
+
+    // Re-attaching would restart the console and network recorders from empty.
+    expect(second).toBe(first);
+    expect(mock.detachCalls).toEqual([]);
+    expect(mock.attachCalls).toEqual([1]);
   });
 
   it('starts a new conversation on the tab the user is actually looking at', async () => {
