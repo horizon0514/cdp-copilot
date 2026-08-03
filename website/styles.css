@@ -109,6 +109,56 @@ img {
   color: var(--paper);
 }
 
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.15rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch a[aria-current="page"] {
+  color: var(--mark);
+  pointer-events: none;
+}
+
+.lang-switch span {
+  color: var(--line-strong);
+}
+
+html[lang^="zh"] body {
+  font-family: "Noto Sans SC", var(--font-body), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+}
+
+html[lang^="zh"] .hero h1,
+html[lang^="zh"] .section h2,
+html[lang^="zh"] .steps h3,
+html[lang^="zh"] .legal h1,
+html[lang^="zh"] .legal h2 {
+  font-family: "Noto Sans SC", var(--font-display), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+html[lang^="zh"] .hero h1 {
+  max-width: 16em;
+}
+
+html[lang^="zh"] .section h2 {
+  max-width: 14em;
+}
+
+html[lang^="zh"] .hero-lead,
+html[lang^="zh"] .section-lead {
+  max-width: 36em;
+}
+
 /* ——— Hero ——— */
 .hero {
   position: relative;

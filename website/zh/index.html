@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagehand — 能操作当前标签页的 AI</title>
+    <meta
+      name="description"
+      content="Pagehand 是一款 Chrome 侧栏 AI，通过 Chrome DevTools Protocol 读取并自动化当前标签页。自带你的 API 密钥即可。"
+    />
+    <meta property="og:title" content="Pagehand" />
+    <meta
+      property="og:description"
+      content="通过 CDP 读取并自动化当前 Chrome 标签页的 AI。侧栏操作，密钥自持，无中间云服务。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <link rel="canonical" href="https://pagehand.vercel.app/zh" />
+    <link rel="alternate" hreflang="en" href="https://pagehand.vercel.app/" />
+    <link rel="alternate" hreflang="zh-CN" href="https://pagehand.vercel.app/zh" />
+    <link rel="alternate" hreflang="x-default" href="https://pagehand.vercel.app/" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&family=Syne:wght@650;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="hero">
+      <div class="hero-stage" aria-hidden="true">
+        <div class="hero-grid"></div>
+        <pre class="hero-tree">RootWebArea "Checkout"
+  banner
+    link "Pagehand"
+    navigation
+  main
+    heading "Order summary"
+    StaticText "$48.00"
+    form
+      textbox "Email"  ← focus
+      textbox "Card"
+      button "Pay now"
+  complementary
+    StaticText "Console · 0 errors"
+    StaticText "Network · 12 req"</pre>
+        <div class="hero-cursor"></div>
+      </div>
+
+      <div class="wrap">
+        <nav class="nav" aria-label="主导航">
+          <a class="brand" href="/zh">
+            <img src="/icon.png" alt="" width="28" height="28" />
+            Pagehand
+          </a>
+          <div class="nav-links">
+            <a class="hide-sm" href="#how">原理</a>
+            <a class="hide-sm" href="#privacy">隐私</a>
+            <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+            <div class="lang-switch" role="group" aria-label="语言">
+              <a href="/" hreflang="en" data-locale="en">EN</a>
+              <span aria-hidden="true">/</span>
+              <a href="/zh" hreflang="zh-CN" data-locale="zh" aria-current="page">中文</a>
+            </div>
+          </div>
+        </nav>
+
+        <div class="hero-content">
+          <p class="hero-brand">
+            <img src="/icon.png" alt="" width="56" height="56" />
+            Pagehand
+          </p>
+          <h1>能动手操作当前标签页的 AI。</h1>
+          <p class="hero-lead">
+            Chrome 侧栏助手。读取页面、点击、填写表单，并查看控制台与网络 —
+            通过 CDP，使用你自己的 API 密钥。
+          </p>
+          <div class="cta-row">
+            <a
+              class="btn btn-primary"
+              id="install-cta"
+              href="https://github.com/horizon0514/pagehand#setup"
+            >
+              从源码安装
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/horizon0514/pagehand">
+              查看 GitHub
+            </a>
+          </div>
+          <p class="hero-meta">Manifest V3 · chrome.debugger · 自带 OpenAI / Anthropic / DeepSeek 密钥</p>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section" id="how">
+        <div class="wrap">
+          <p class="section-label">原理</p>
+          <h2>侧栏直接拥有调试器。</h2>
+          <p class="section-lead">
+            无需 Node 旁路进程，也无需 MCP 桥接。Pagehand 在扩展内部直接对话
+            Chrome DevTools Protocol，驱动你正在看的标签页。
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>打开侧栏</h3>
+              <p><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>，或点击工具栏图标。</p>
+            </li>
+            <li>
+              <h3>填入密钥</h3>
+              <p>默认 DeepSeek — OpenAI、Anthropic 或任意 OpenAI 兼容端点均可。</p>
+            </li>
+            <li>
+              <h3>让它动手</h3>
+              <p>总结页面、点击、填表、追查控制台错误，或在真实页面上走完多步流程。</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="tools">
+        <div class="wrap">
+          <p class="section-label">能力</p>
+          <h2>与 Puppeteer 同一套协议。</h2>
+          <p class="section-lead">
+            无障碍树快照、输入、导航、截图、控制台与网络 —
+            直接对接 CDP 域实现，而不是脆弱的 DOM 抓取。
+          </p>
+          <ul class="feature-list">
+            <li>
+              <code>take_snapshot</code>
+              <p>以结构化无障碍树读取页面，带稳定 uid。</p>
+            </li>
+            <li>
+              <code>click / fill / type</code>
+              <p>像真人一样操作表单与界面 — 包括替换前先全选。</p>
+            </li>
+            <li>
+              <code>navigate / tabs</code>
+              <p>在页面间跳转并管理标签页，Agent 保持上下文。</p>
+            </li>
+            <li>
+              <code>console / network</code>
+              <p>无需亲自打开 DevTools，即可查看错误与请求。</p>
+            </li>
+            <li>
+              <code>evaluate_script</code>
+              <p>读树不够时，运行针对性的页面脚本。</p>
+            </li>
+            <li>
+              <code>take_screenshot</code>
+              <p>捕获标签页画面，并保留在对话线程中。</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="wrap">
+          <p class="section-label">隐私</p>
+          <h2>你的密钥不会经我们的服务器离开本机。</h2>
+          <div class="privacy-box">
+            <p>
+              Pagehand 没有后端。API 密钥保存在 <code>chrome.storage.local</code>
+              中，仅发送给你选择的模型提供商。附着调试时，Chrome 会显示
+              「Pagehand is debugging this browser」横幅 —
+              这是有意为之，且无法隐藏。
+              <a href="/zh/privacy">阅读完整隐私政策 →</a>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-row">
+        <span>© <span id="y"></span> Pagehand</span>
+        <nav aria-label="页脚">
+          <a href="/zh/privacy">隐私</a>
+          <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="/locale.js"></script>
+    <script>
+      document.getElementById("y").textContent = String(new Date().getFullYear());
+    </script>
+  </body>
+</html>
