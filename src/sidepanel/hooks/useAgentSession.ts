@@ -3,7 +3,7 @@ import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
-import { getBoundTabId, ensureSession } from '../../lib/tools/context';
+import { getBoundTabId, ensureSession, releaseStaleBinding } from '../../lib/tools/context';
 
 export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
@@ -113,6 +113,24 @@ export function useAgentSession(settings: Settings | null) {
     abortRef.current?.abort();
   }, []);
 
+  // Leaving a conversation drops a stale tab binding with it — see
+  // releaseStaleBinding. Both stores refuse to switch mid-turn anyway; the
+  // guard here keeps the binding from being released without that happening.
+  const startNewChat = useCallback(async () => {
+    if (isStreaming) return;
+    await releaseStaleBinding();
+    await newChat();
+  }, [isStreaming, newChat]);
+
+  const openThread = useCallback(
+    async (id: string) => {
+      if (isStreaming || id === threadId) return;
+      await releaseStaleBinding();
+      await switchThread(id);
+    },
+    [isStreaming, threadId, switchThread],
+  );
+
   return {
     messages,
     isStreaming,
@@ -122,7 +140,7 @@ export function useAgentSession(settings: Settings | null) {
     threadList,
     hydrated,
     hydrate,
-    newChat,
-    switchThread,
+    newChat: startNewChat,
+    switchThread: openThread,
   };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installChromeMock, type ChromeMock } from '../../test/chromeMock';
 import { sessionRegistry } from '../debugger-bridge/sessionRegistry';
-import { ensureSession, getBoundTabId, setBoundTabId } from './context';
+import { ensureSession, getBoundTabId, releaseStaleBinding, setBoundTabId } from './context';
 import { selectPage } from '../pages/PageManager';
 
 let mock: ChromeMock;
@@ -53,6 +53,39 @@ describe('ensureSession — tab binding (#4)', () => {
 
     const session = await ensureSession();
     expect(session.getTabId()).toBe(2);
+  });
+
+  it('starts a new conversation on the tab the user is actually looking at', async () => {
+    await ensureSession();
+    expect(getBoundTabId()).toBe(1);
+
+    // Days later, on a different tab, the user starts a new chat.
+    mock.setTab(1, 'https://www.v2ex.com/', { active: false });
+    mock.setTab(2, 'https://example.com/', { active: true });
+    await releaseStaleBinding();
+
+    expect(getBoundTabId()).toBeNull();
+    expect(sessionRegistry.getAttached()).toBeNull();
+    expect(mock.detachCalls).toContain(1);
+
+    const session = await ensureSession();
+    expect(session.getTabId()).toBe(2);
+  });
+
+  it('keeps the attachment when the bound tab is still the active one', async () => {
+    await ensureSession();
+    await releaseStaleBinding();
+
+    // Detaching here would throw away the console/network buffers for nothing.
+    expect(mock.detachCalls).toEqual([]);
+    expect(sessionRegistry.getAttached()?.getTabId()).toBe(1);
+    expect(getBoundTabId()).toBe(1);
+  });
+
+  it('clears a remembered binding even with nothing attached', async () => {
+    setBoundTabId(2);
+    await releaseStaleBinding();
+    expect(getBoundTabId()).toBeNull();
   });
 
   it('falls back to the active tab if the bound tab was closed', async () => {
