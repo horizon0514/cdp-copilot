@@ -23,6 +23,15 @@ export default defineManifest({
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },
+  // openPanelOnActionClick is set at install, so triggering the action opens the
+  // panel — a tool that claims to be at hand shouldn't need the mouse to reach.
+  // Remappable at chrome://extensions/shortcuts if this collides with something.
+  commands: {
+    _execute_action: {
+      suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
+      description: 'Open the cdp-copilot side panel',
+    },
+  },
   background: {
     service_worker: 'src/background/index.ts',
     type: 'module',

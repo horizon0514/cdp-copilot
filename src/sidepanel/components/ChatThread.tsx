@@ -51,9 +51,12 @@ export function EmptySuggestions({ onPick }: { onPick: (text: string) => void })
 export default function ChatThread({
   messages,
   isStreaming,
+  onSend,
 }: {
   messages: DisplayMessage[];
   isStreaming: boolean;
+  /** Backs the Continue / Retry buttons on the last message. */
+  onSend: (text: string) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -84,9 +87,21 @@ export default function ChatThread({
       aria-relevant="additions"
       aria-busy={isStreaming}
     >
-      {messages.map((m, i) => (
-        <MessageBubble key={m.id} message={m} isStreaming={isStreaming && i === messages.length - 1} />
-      ))}
+      {messages.map((m, i) => {
+        const isLast = i === messages.length - 1;
+        const actionable = isLast && !isStreaming;
+        const asked = messages[i - 1]?.role === 'user' ? messages[i - 1].text : undefined;
+
+        return (
+          <MessageBubble
+            key={m.id}
+            message={m}
+            isStreaming={isStreaming && isLast}
+            onContinue={actionable ? () => onSend('Continue where you left off.') : undefined}
+            onRetry={actionable && asked ? () => onSend(asked) : undefined}
+          />
+        );
+      })}
       <div ref={bottomRef} />
     </div>
   );
