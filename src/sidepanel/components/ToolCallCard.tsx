@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { DisplayToolCall } from '../state/conversationStore';
 import { extractImages, redactImages } from '../../lib/images/toolImages';
 import { openImageViewer } from '../lib/openImageViewer';
+import { toolOutputPreview } from '../lib/toolOutputPreview';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 import { useT } from '../i18n/useT';
@@ -30,17 +31,41 @@ const STATUS: Record<
   aborted: { variant: 'neutral', labelKey: 'tools.stopped', pulse: false },
 };
 
+/** Claude Code–style body: newest lines by default; expand for the full dump. */
 function Block({ label, body, tone }: { label: string; body: string; tone?: 'negative' }) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const preview = toolOutputPreview(body);
+  const canTruncate = preview.omittedLines > 0 || preview.truncatedByChars;
+  const shown = expanded || !canTruncate ? body : preview.text;
+
   return (
     <div className="space-y-0.5">
-      <div className="text-[10px] font-medium tracking-[0.06em] text-fg-tertiary uppercase">{label}</div>
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-[10px] font-medium tracking-[0.06em] text-fg-tertiary uppercase">{label}</div>
+        {canTruncate && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="shrink-0 text-[10px] text-fg-tertiary transition-colors hover:text-fg"
+          >
+            {expanded ? t('tools.showLess') : t('tools.showAll')}
+          </button>
+        )}
+      </div>
+      {!expanded && preview.omittedLines > 0 && (
+        <div className="font-mono text-[10px] leading-[1.4] text-fg-tertiary">
+          {t('tools.moreLines', { count: preview.omittedLines })}
+        </div>
+      )}
       <pre
         className={cn(
           'overflow-x-auto font-mono text-[11px] leading-[1.55] break-words whitespace-pre-wrap',
           tone === 'negative' ? 'text-negative' : 'text-fg-secondary',
+          !expanded && canTruncate && 'max-h-[9.5rem] overflow-y-auto',
         )}
       >
-        {body}
+        {!expanded && preview.truncatedByChars ? `…${shown}` : shown}
       </pre>
     </div>
   );

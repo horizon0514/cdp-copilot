@@ -79,6 +79,9 @@ export const en = {
   'tools.preview': 'Preview',
   'tools.images': '{count} img',
   'tools.stoppedBeforeResult': 'Stopped before this tool reported back.',
+  'tools.moreLines': '… {count} lines above',
+  'tools.showAll': 'Show all',
+  'tools.showLess': 'Show less',
 
   // Settings
   'settings.title': 'Settings',

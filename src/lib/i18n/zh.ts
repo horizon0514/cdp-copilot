@@ -71,6 +71,9 @@ export const zh: Messages = {
   'tools.preview': '预览',
   'tools.images': '{count} 张图',
   'tools.stoppedBeforeResult': '停止时该工具尚未返回结果。',
+  'tools.moreLines': '… 上方另有 {count} 行',
+  'tools.showAll': '显示全部',
+  'tools.showLess': '收起',
 
   'settings.title': '设置',
   'settings.intro': '先配置模型提供商即可开始。密钥只保存在本机浏览器配置中。',
