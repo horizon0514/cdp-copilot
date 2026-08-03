@@ -1,4 +1,4 @@
-import type { ModelMessage } from 'ai';
+import type { ModelMessage, ToolContent } from 'ai';
 
 const DATA_URL_RE = /data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g;
 
@@ -51,6 +51,56 @@ export function sanitizeModelMessages(messages: ModelMessage[]): ModelMessage[] 
     });
 
     return { ...message, content } as ModelMessage;
+  });
+}
+
+const SNAPSHOT_TOOL = 'take_snapshot';
+const STALE_SNAPSHOT =
+  '[snapshot omitted — superseded by a newer take_snapshot, and its uids stopped being valid at that point]';
+
+function stubSnapshotResult(part: Extract<ToolContent[number], { type: 'tool-result' }>) {
+  const output = part.output;
+  if (output.type !== 'json') return { ...part, output: { type: 'text' as const, value: STALE_SNAPSHOT } };
+
+  const value = output.value;
+  // Keep the shape (url, uidCount, …) so the model still knows a snapshot of
+  // that page happened here — only the payload goes.
+  const stubbed =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>), snapshot: STALE_SNAPSHOT }
+      : STALE_SNAPSHOT;
+  return { ...part, output: { ...output, value: stubbed } };
+}
+
+/**
+ * Drop every take_snapshot payload but the newest.
+ *
+ * A snapshot runs up to 40K chars (~12K tokens) and history is replayed in full
+ * on every turn, so three or four of them end a thread on a 64K-context model.
+ * They're also the one tool result that goes actively stale rather than merely
+ * large: the moment a newer snapshot exists, the older uids resolve to nothing,
+ * so an old payload can only mislead the model into citing a dead uid.
+ */
+export function elideStaleSnapshots<T extends ModelMessage>(messages: T[]): T[] {
+  let newest = -1;
+  messages.forEach((message, index) => {
+    if (message.role !== 'tool' || !Array.isArray(message.content)) return;
+    if (message.content.some((p) => p.type === 'tool-result' && p.toolName === SNAPSHOT_TOOL)) {
+      newest = index;
+    }
+  });
+  if (newest === -1) return messages;
+
+  return messages.map((message, index) => {
+    if (index === newest || message.role !== 'tool' || !Array.isArray(message.content)) return message;
+
+    let changed = false;
+    const content = message.content.map((part) => {
+      if (part.type !== 'tool-result' || part.toolName !== SNAPSHOT_TOOL) return part;
+      changed = true;
+      return stubSnapshotResult(part);
+    });
+    return changed ? ({ ...message, content } as T) : message;
   });
 }
 

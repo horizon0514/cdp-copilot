@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelMessage } from 'ai';
-import { dropDanglingToolCalls, sanitizeModelMessages, sanitizeValue } from './sanitizeMessages';
+import {
+  dropDanglingToolCalls,
+  elideStaleSnapshots,
+  sanitizeModelMessages,
+  sanitizeValue,
+} from './sanitizeMessages';
 
 describe('sanitizeModelMessages', () => {
   const png = `data:image/png;base64,${'A'.repeat(200)}`;
@@ -37,6 +42,61 @@ describe('sanitizeModelMessages', () => {
       snapshot: 'button "OK"',
       n: 2,
     });
+  });
+});
+
+describe('elideStaleSnapshots', () => {
+  const snapshot = (id: string, text: string): ModelMessage => ({
+    role: 'tool',
+    content: [
+      {
+        type: 'tool-result',
+        toolCallId: id,
+        toolName: 'take_snapshot',
+        output: { type: 'json', value: { url: 'https://example.com/', snapshot: text, uidCount: 2 } },
+      },
+    ],
+  });
+
+  it('keeps the newest snapshot and stubs the ones it superseded', () => {
+    const messages: ModelMessage[] = [
+      snapshot('1', 'heading Old'),
+      { role: 'assistant', content: 'looking again' },
+      snapshot('2', 'heading Current'),
+    ];
+
+    const [first, , last] = elideStaleSnapshots(messages);
+    expect(JSON.stringify(first)).not.toContain('heading Old');
+    expect(JSON.stringify(first)).toContain('snapshot omitted');
+    // The surrounding facts survive — the model still knows it looked here.
+    expect(JSON.stringify(first)).toContain('https://example.com/');
+    expect(JSON.stringify(last)).toContain('heading Current');
+  });
+
+  it('leaves a lone snapshot alone and is safe to reapply', () => {
+    const messages = [snapshot('1', 'heading Only')];
+    expect(elideStaleSnapshots(messages)).toEqual(messages);
+
+    const twice = elideStaleSnapshots(elideStaleSnapshots([...messages, snapshot('2', 'newer')]));
+    expect(JSON.stringify(twice)).toContain('newer');
+    expect(JSON.stringify(twice)).not.toContain('heading Only');
+  });
+
+  it('never touches other tools — their results stay true after the fact', () => {
+    const network: ModelMessage = {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'n1',
+          toolName: 'list_network_requests',
+          output: { type: 'json', value: { requests: ['GET /api/user 401'] } },
+        },
+      ],
+    };
+
+    const kept = elideStaleSnapshots([network, snapshot('1', 'a'), snapshot('2', 'b')]);
+    expect(kept[0]).toEqual(network);
   });
 });
 

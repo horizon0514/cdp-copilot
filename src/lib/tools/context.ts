@@ -22,6 +22,43 @@ async function resolveActiveTabId(): Promise<number | undefined> {
 }
 
 /**
+ * Binds to the tab the user is looking at, moving the attachment if it was
+ * somewhere else.
+ *
+ * This is what the first message of a conversation uses. Until something has
+ * been asked, a thread has no subject, so "this page" can only mean the page in
+ * front of the user at the moment they ask — never one a previous conversation
+ * happened to pick. Attaching to the tab already attached is a no-op, so the
+ * console and network buffers survive when nothing actually moved.
+ */
+export async function bindToActiveTab(): Promise<DebuggerSession> {
+  const targetId = await resolveActiveTabId();
+  if (targetId == null) {
+    throw new Error('No active tab found to automate. Open a page first.');
+  }
+  boundTabId = targetId;
+  return sessionRegistry.attach(targetId);
+}
+
+/**
+ * Drops a binding the next conversation shouldn't inherit. The panel outlives
+ * any single thread — often by days — so without this a new chat silently keeps
+ * acting on whatever tab the last one happened to attach to.
+ *
+ * An attachment that still points at what the user is looking at is kept: the
+ * console and network recorders buffer from attach time, and throwing that away
+ * to re-attach to the same tab would lose exactly the history worth asking about.
+ */
+export async function releaseStaleBinding(): Promise<void> {
+  const attached = sessionRegistry.getAttached();
+  if (attached && attached.getTabId() !== (await resolveActiveTabId())) {
+    // A failed detach leaves us attached, which the check below reads correctly.
+    await sessionRegistry.detach().catch(() => {});
+  }
+  if (!sessionRegistry.getAttached()) boundTabId = null;
+}
+
+/**
  * Returns the currently attached session, attaching to the bound tab (or the
  * active tab on first use) if nothing is attached yet.
  */

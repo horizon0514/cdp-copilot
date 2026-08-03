@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { streamAgentEvents, buildMessages, type AgentEvent, type StopInfo } from './agentLoop';
@@ -112,6 +112,47 @@ describe('streamAgentEvents — StopInfo diagnostics', () => {
     const { events } = await collect([{ do: 'error', message: 'context length exceeded' }]);
     const err = events.find((e) => e.type === 'error');
     expect((err as Extract<AgentEvent, { type: 'error' }>).message).toContain('context length exceeded');
+  });
+});
+
+describe('streamAgentEvents — keeping a long turn inside the context window', () => {
+  /** Stands in for take_snapshot: a big payload whose uids die on the next call. */
+  const snapshotTool = tool({
+    description: 'snapshots the page',
+    inputSchema: z.object({}),
+    execute: async () => ({ url: 'https://example.com/', snapshot: `PAGE-${++snapshots}`, uidCount: 3 }),
+  });
+  let snapshots = 0;
+
+  beforeEach(() => {
+    snapshots = 0;
+  });
+
+  it('stops resending snapshots the model has already superseded', async () => {
+    const prompts: string[] = [];
+    const model = scriptedModel(
+      [
+        { do: 'tool', name: 'take_snapshot' },
+        { do: 'tool', name: 'take_snapshot' },
+        { do: 'text', text: 'done' },
+      ],
+      (prompt) => prompts.push(JSON.stringify(prompt)),
+    );
+
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'go' }], {
+      toolset: { take_snapshot: snapshotTool },
+      maxSteps: 5,
+    })) {
+      void _;
+    }
+
+    // Third call: two snapshots have been taken, only the newer may be sent.
+    expect(prompts).toHaveLength(3);
+    expect(prompts[2]).not.toContain('PAGE-1');
+    expect(prompts[2]).toContain('PAGE-2');
+    expect(prompts[2]).toContain('snapshot omitted');
+    // The second call still carried the only snapshot that existed then.
+    expect(prompts[1]).toContain('PAGE-1');
   });
 });
 

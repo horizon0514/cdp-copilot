@@ -1,6 +1,8 @@
 import { useDeferredValue } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ArrowRight, RotateCw } from 'lucide-react';
+import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import { stabilizeStreamingMarkdown } from '../lib/stabilizeStreamingMarkdown';
 import { imagesFromToolCalls } from '../../lib/images/toolImages';
@@ -74,15 +76,22 @@ function AssistantText({ text, streaming }: { text: string; streaming: boolean }
 export default function MessageBubble({
   message,
   isStreaming,
+  onContinue,
+  onRetry,
 }: {
   message: DisplayMessage;
   isStreaming?: boolean;
+  /** Present only on the last message, once the turn has settled. */
+  onContinue?: () => void;
+  onRetry?: () => void;
 }) {
   const hasText = message.text.trim().length > 0;
   const isUser = message.role === 'user';
   const chatImages = isUser ? [] : imagesFromToolCalls(message.toolCalls);
   const showThinking =
     isStreaming && !isUser && !hasText && message.toolCalls.length === 0 && chatImages.length === 0;
+  const showContinue = Boolean(onContinue) && !isStreaming && message.stop?.hitStepLimit === true;
+  const showRetry = Boolean(onRetry) && !isStreaming && Boolean(message.error);
 
   if (isUser) {
     return (
@@ -122,6 +131,25 @@ export default function MessageBubble({
         (message.stop.hitStepLimit || message.stop.finishReason !== 'stop' || !hasText) && (
           <StopNote stop={message.stop} hasText={hasText} />
         )}
+
+      {/* The two dead ends worth a button: it wanted more steps, or it failed
+          outright. Both were previously "retype it yourself". */}
+      {(showContinue || showRetry) && (
+        <div className="flex flex-wrap gap-1.5">
+          {showContinue && (
+            <Button type="button" size="sm" variant="outline" onClick={onContinue}>
+              <ArrowRight className="size-3" />
+              Continue
+            </Button>
+          )}
+          {showRetry && (
+            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+              <RotateCw className="size-3" />
+              Retry
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
