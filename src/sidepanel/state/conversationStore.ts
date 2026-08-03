@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ModelMessage } from 'ai';
 import type { StopInfo, TurnResponseMessage } from '../../lib/llm/agentLoop';
+import { elideStaleSnapshots } from '../../lib/llm/sanitizeMessages';
 import {
   loadThreadStore,
   makeEmptyThread,
@@ -218,11 +219,14 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   commitTurn: (userText, responseMessages) =>
     set((state) => ({
-      modelMessages: [
+      // Elide here rather than at send time: a superseded snapshot is dead
+      // weight in IndexedDB too, and hydrating a thread shouldn't drag along
+      // 40K-char payloads whose uids expired days ago.
+      modelMessages: elideStaleSnapshots([
         ...state.modelMessages,
         { role: 'user', content: userText },
         ...responseMessages,
-      ],
+      ]),
     })),
 
   setStreaming: (isStreaming) => set({ isStreaming }),
