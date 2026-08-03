@@ -4,6 +4,7 @@ import { sessionRegistry } from '../../lib/debugger-bridge/sessionRegistry';
 import { getBoundTabId } from '../../lib/tools/context';
 import { selectPage } from '../../lib/pages/PageManager';
 import { useConversationStore } from '../state/conversationStore';
+import { useT } from '../i18n/useT';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 
@@ -22,7 +23,8 @@ function hostOf(tab: chrome.tabs.Tab | null): string {
  * fixes it. Binding deliberately never follows the active tab on its own (#4),
  * which is only safe if the mismatch is impossible to miss.
  */
-export default function TabPicker() {
+export default function BoundTabBar() {
+  const t = useT();
   const [boundTab, setBoundTab] = useState<chrome.tabs.Tab | null>(null);
   const [active, setActive] = useState<chrome.tabs.Tab | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export default function TabPicker() {
             className={`size-1.5 rounded-full ${bound ? (drifted ? 'bg-caution' : 'bg-positive') : 'bg-fg-tertiary'}`}
             aria-hidden
           />
-          {bound ? 'Bound' : 'active'}
+          {bound ? t('bound.badgeBound') : t('bound.badgeActive')}
         </Badge>
         {target.favIconUrl ? (
           <img className="size-3.5 shrink-0 rounded-[3px]" src={target.favIconUrl} alt="" />
@@ -107,8 +109,7 @@ export default function TabPicker() {
       {drifted && (
         <div className="flex items-center gap-2 border-t border-line bg-caution-soft px-3 py-1.5 text-[11px] leading-[1.4] text-caution">
           <span className="min-w-0 flex-1">
-            Acting on <span className="font-medium">{host}</span> — you're viewing{' '}
-            <span className="font-medium">{hostOf(active)}</span>
+            {t('bound.drifted', { bound: host, viewing: hostOf(active) })}
           </span>
           <Button
             type="button"
@@ -117,9 +118,13 @@ export default function TabPicker() {
             onClick={() => void switchToActive()}
             // Rebinding mid-turn would pull the page out from under the agent.
             disabled={isStreaming || switching}
-            title={isStreaming ? 'Stop the agent first' : `Move the agent to ${hostOf(active)}`}
+            title={
+              isStreaming
+                ? t('bound.stopFirst')
+                : t('bound.moveTo', { host: hostOf(active) })
+            }
           >
-            {switching ? 'Switching…' : 'Switch here'}
+            {switching ? t('bound.switching') : t('bound.switchHere')}
           </Button>
         </div>
       )}

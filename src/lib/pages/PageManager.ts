@@ -9,6 +9,8 @@ export interface PageInfo {
   title: string;
   active: boolean;
   attached: boolean;
+  /** For the UI only — a person picks a tab by its icon. Stripped from list_pages. */
+  favIconUrl?: string;
 }
 
 function toPageInfo(tab: chrome.tabs.Tab): PageInfo | null {
@@ -19,6 +21,7 @@ function toPageInfo(tab: chrome.tabs.Tab): PageInfo | null {
     title: tab.title ?? '',
     active: tab.active ?? false,
     attached: sessionRegistry.getAttached()?.getTabId() === tab.id,
+    favIconUrl: tab.favIconUrl,
   };
 }
 

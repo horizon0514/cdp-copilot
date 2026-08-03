@@ -7,6 +7,8 @@ const MAX_VISIBLE = 6;
 export interface TabMentions {
   open: boolean;
   items: PageInfo[];
+  /** What the user typed after the '@' — the menu highlights it in each row. */
+  query: string;
   activeIndex: number;
   setActiveIndex: (index: number) => void;
   choose: (page: PageInfo) => void;
@@ -136,5 +138,15 @@ export function useTabMentions(
     if (input === '') close();
   }, [input, close]);
 
-  return { open, items, activeIndex, setActiveIndex, choose, close, sync, handleKeyDown };
+  return {
+    open,
+    items,
+    query: query ?? '',
+    activeIndex,
+    setActiveIndex,
+    choose,
+    close,
+    sync,
+    handleKeyDown,
+  };
 }

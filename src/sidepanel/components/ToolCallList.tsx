@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { DisplayToolCall } from '../state/conversationStore';
 import ToolCallCard from './ToolCallCard';
 import { Badge } from './ui/badge';
+import { useT } from '../i18n/useT';
 
 /** Wait before folding a finished tool into the compact "N tools" group. */
 export const TOOL_GROUP_DELAY_MS = 1000;
@@ -136,6 +137,7 @@ function useSettledDoneIds(calls: DisplayToolCall[]): ReadonlySet<string> {
 }
 
 function SuccessGroup({ calls }: { calls: DisplayToolCall[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const names = calls.map((c) => c.name).join(', ');
 
@@ -153,11 +155,11 @@ function SuccessGroup({ calls }: { calls: DisplayToolCall[] }) {
       <summary className="flex h-7 cursor-pointer list-none items-center gap-1.5 px-2 select-none transition-colors duration-150 hover:bg-surface-hover">
         <ChevronRight className="size-3 shrink-0 text-fg-tertiary transition-transform duration-200 group-open:rotate-90" />
         <span className="truncate text-[11.5px] text-fg-secondary group-hover:text-fg" title={names}>
-          {calls.length} tools
+          {t('tools.count', { count: calls.length })}
         </span>
         <Badge variant="positive" className="ml-auto">
           <span className="size-1 rounded-full bg-current" />
-          Done
+          {t('tools.done')}
         </Badge>
       </summary>
       <div className="flex flex-col gap-1 border-t border-line p-1.5">

@@ -3,15 +3,18 @@ import { createPortal } from 'react-dom';
 import { Check, History, MessageSquarePlus, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
+import { useI18n, useT } from '../i18n/useT';
 import type { ThreadSummary } from '../state/conversationStore';
+import type { Locale } from '../../lib/i18n';
 
-function formatWhen(ts: number): string {
+function formatWhen(ts: number, locale: Locale): string {
+  const tag = locale === 'zh' ? 'zh-CN' : 'en';
   const d = new Date(ts);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit' });
   }
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(tag, { month: 'short', day: 'numeric' });
 }
 
 export default function ThreadSwitcher({
@@ -30,11 +33,13 @@ export default function ThreadSwitcher({
   onNewChat: () => void;
   onSwitch: (id: string) => void;
 }) {
+  const t = useT();
+  const { locale } = useI18n();
   const [open, setOpen] = useState(false);
   const [shell, setShell] = useState<HTMLElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const current = threadList.find((t) => t.id === threadId);
-  const title = current?.title ?? 'New chat';
+  const title = current?.title ?? t('thread.newChat');
   const sheetOpen = open && !blocked;
 
   useEffect(() => {
@@ -69,16 +74,16 @@ export default function ThreadSwitcher({
         className="animate-enter absolute inset-x-0 top-10 bottom-0 z-50 flex flex-col bg-bg"
         role="dialog"
         aria-modal="true"
-        aria-label="Chat history"
+        aria-label={t('thread.history')}
       >
         <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-line bg-surface px-3">
-          <span className="text-[12.5px] font-medium text-fg">Chats</span>
+          <span className="text-[12.5px] font-medium text-fg">{t('thread.chats')}</span>
           <Button
             ref={closeRef}
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label="Close chat history"
+            aria-label={t('thread.historyClose')}
             onClick={() => setOpen(false)}
           >
             <X className="size-3.5" />
@@ -99,31 +104,29 @@ export default function ThreadSwitcher({
             <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent">
               <MessageSquarePlus className="size-3.5" />
             </span>
-            New chat
+            {t('thread.newChat')}
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2" role="listbox" aria-label="Chat sessions">
+        <div className="min-h-0 flex-1 overflow-y-auto p-2" role="listbox" aria-label={t('thread.sessions')}>
           {threadList.length === 0 ? (
-            <div className="px-2 py-8 text-center text-[12px] leading-[1.5] text-fg-tertiary">
-              No chats yet.
-              <br />
-              Send a message to start one.
+            <div className="whitespace-pre-line px-2 py-8 text-center text-[12px] leading-[1.5] text-fg-tertiary">
+              {t('thread.empty')}
             </div>
           ) : (
             <div className="flex flex-col gap-0.5">
-              {threadList.map((t) => {
-                const active = t.id === threadId;
+              {threadList.map((thread) => {
+                const active = thread.id === threadId;
                 return (
                   <button
-                    key={t.id}
+                    key={thread.id}
                     type="button"
                     role="option"
                     aria-selected={active}
                     disabled={isStreaming}
                     onClick={() => {
                       setOpen(false);
-                      onSwitch(t.id);
+                      onSwitch(thread.id);
                     }}
                     className={cn(
                       'flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2.5 text-left outline-none transition-colors duration-150',
@@ -139,9 +142,11 @@ export default function ThreadSwitcher({
                           active ? 'font-medium text-fg' : 'text-fg',
                         )}
                       >
-                        {t.title}
+                        {thread.title}
                       </div>
-                      <div className="mt-0.5 text-[10.5px] text-fg-tertiary">{formatWhen(t.updatedAt)}</div>
+                      <div className="mt-0.5 text-[10.5px] text-fg-tertiary">
+                        {formatWhen(thread.updatedAt, locale)}
+                      </div>
                     </div>
                     {active && <Check className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />}
                   </button>
@@ -167,10 +172,10 @@ export default function ThreadSwitcher({
           variant={sheetOpen ? 'subtle' : 'ghost'}
           size="icon-sm"
           disabled={isStreaming || blocked}
-          aria-label="Chat history"
+          aria-label={t('thread.history')}
           aria-expanded={sheetOpen}
           aria-controls="chat-history-sheet"
-          title="Chat history"
+          title={t('thread.history')}
           onClick={() => setOpen((v) => !v)}
         >
           <History className="size-3.5" />
@@ -180,8 +185,8 @@ export default function ThreadSwitcher({
           variant="ghost"
           size="icon-sm"
           disabled={isStreaming || blocked}
-          aria-label="New chat"
-          title="New chat"
+          aria-label={t('thread.newChat')}
+          title={t('thread.newChat')}
           onClick={startNew}
         >
           <Plus className="size-3.5" strokeWidth={2.25} />

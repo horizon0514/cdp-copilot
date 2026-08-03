@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "cdp-copilot"
+  },
+  "extDescription": {
+    "message": "AI copilot that reads and automates the current tab via the Chrome DevTools Protocol."
+  },
+  "commandOpenPanel": {
+    "message": "Open the cdp-copilot side panel"
+  }
+}

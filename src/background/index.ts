@@ -3,6 +3,8 @@
 // install-time setup, the context-menu handoff, and reliable debugger detach
 // when the side panel closes (pagehide alone is best-effort during teardown).
 
+import { installContextMenus, watchContextMenuLocale } from './contextMenus';
+
 interface PendingPrompt {
   tabId: number;
   selectionText?: string;
@@ -10,18 +12,10 @@ interface PendingPrompt {
 
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-
-  chrome.contextMenus.create({
-    id: 'cdp-copilot-ask-page',
-    title: 'Ask AI about this page',
-    contexts: ['page'],
-  });
-  chrome.contextMenus.create({
-    id: 'cdp-copilot-ask-selection',
-    title: 'Ask AI about selection',
-    contexts: ['selection'],
-  });
+  void installContextMenus();
 });
+
+watchContextMenuLocale();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (tab?.id === undefined) return;

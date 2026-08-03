@@ -4,6 +4,7 @@ import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
 import { listPages } from '../../lib/pages/PageManager';
+import { peekMentionedTabs } from '../../lib/pages/peekMentions';
 import { buildTabContext, parseTabMentions, toDisplayText } from '../../lib/pages/tabMentions';
 import {
   getBoundTabId,
@@ -74,7 +75,14 @@ export function useAgentSession(settings: Settings | null) {
         agentTabTracker.beginTurn(getBoundTabId());
       }
 
-      const context = mentions.length ? buildTabContext(mentions, await listPages()) : null;
+      const pages = mentions.length ? await listPages() : [];
+      const peeks = mentions.length ? await peekMentionedTabs(mentions) : new Map();
+      const context = mentions.length
+        ? buildTabContext(mentions, pages, {
+            boundPageId: getBoundTabId(),
+            peeks,
+          })
+        : null;
       const prompt = context ? `${shownText}\n\n${context}` : shownText;
 
       try {

@@ -1,4 +1,5 @@
 import type { PageInfo } from './PageManager';
+import { sessionRegistry } from '../debugger-bridge/sessionRegistry';
 
 /**
  * An @-mention carries a tab id the user picked, so the model doesn't have to
@@ -96,23 +97,76 @@ export function filterPages(pages: PageInfo[], query: string): PageInfo[] {
   );
 }
 
+const PEEK_CHARS = 12_000;
+
 /**
- * The block appended to what the model sees. It states the facts and stops
- * there: whether to switch pages stays the model's call, made with select_page
- * like any other, rather than something the composer did behind its back.
+ * Read a tab's visible text without changing the agent's bound tab id. Restores
+ * whatever debugger attachment was in place, so BoundTabBar and later tools
+ * stay where the user left them.
  */
-export function buildTabContext(mentions: TabMention[], pages: PageInfo[]): string | null {
+export async function peekPageText(pageId: number): Promise<string | null> {
+  const previousTabId = sessionRegistry.getAttached()?.getTabId() ?? null;
+  try {
+    const session = await sessionRegistry.attach(pageId);
+    await session.send('Runtime.enable');
+    const { result } = await session.send<{ result: { value?: unknown } }>('Runtime.evaluate', {
+      expression: `(() => {
+        const t = document.body?.innerText ?? '';
+        return t.length > ${PEEK_CHARS} ? t.slice(0, ${PEEK_CHARS}) + '\\n…' : t;
+      })()`,
+      returnByValue: true,
+    });
+    const value = result.value;
+    return typeof value === 'string' && value.trim() ? value : null;
+  } catch {
+    return null;
+  } finally {
+    if (previousTabId != null && previousTabId !== pageId) {
+      await sessionRegistry.attach(previousTabId).catch(() => {});
+    } else if (previousTabId == null) {
+      await sessionRegistry.detach().catch(() => {});
+    }
+  }
+}
+
+export interface TabContextOptions {
+  boundPageId: number | null;
+  /** When set, include a quiet text peek of each referenced tab. */
+  peeks?: ReadonlyMap<number, string | null>;
+}
+
+/**
+ * Facts about @-mentioned tabs. Mentions are references — they must not shove
+ * the agent onto another tab. Content is inlined when we have a peek so the
+ * model can summarise without calling select_page.
+ */
+export function buildTabContext(
+  mentions: TabMention[],
+  pages: PageInfo[],
+  opts: TabContextOptions = { boundPageId: null },
+): string | null {
   if (mentions.length === 0) return null;
 
-  const lines = mentions.map((mention) => {
+  const lines = mentions.flatMap((mention) => {
     const page = pages.find((p) => p.pageId === mention.pageId);
-    if (!page) return `- @${mention.label} — that tab is no longer open.`;
-    return `- @${mention.label} — pageId ${page.pageId}, ${JSON.stringify(page.title)}, ${page.url}`;
+    if (!page) return [`- @${mention.label} — that tab is no longer open.`];
+
+    const header = `- @${mention.label} — pageId ${page.pageId}, ${JSON.stringify(page.title)}, ${page.url}`;
+    const peek = opts.peeks?.get(mention.pageId);
+    if (peek === undefined) return [header];
+    if (peek == null) return [header, '  (page text unavailable)'];
+    return [header, '  Page text:', ...peek.split('\n').map((line) => `  ${line}`)];
   });
 
+  const bound =
+    opts.boundPageId != null
+      ? `The agent is bound to pageId ${opts.boundPageId}. Stay there.`
+      : 'Stay on the currently bound tab.';
+
   return [
-    'Tabs referenced above:',
+    'Tabs referenced above (for context only):',
     ...lines,
-    'Call select_page with a pageId to work on one of them.',
+    bound,
+    'Do NOT call select_page just because a tab was @-mentioned — the page text above is already available when present. Only select_page if the user explicitly asks to switch to or interact with another tab; if you must, pass bringToFront: false unless they ask to see it.',
   ].join('\n');
 }

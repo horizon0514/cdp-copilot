@@ -5,6 +5,8 @@ import { extractImages, redactImages } from '../../lib/images/toolImages';
 import { openImageViewer } from '../lib/openImageViewer';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
+import { useT } from '../i18n/useT';
+import type { MessageKey } from '../../lib/i18n';
 import ImageLightbox from './ImageLightbox';
 
 /** Collapse a just-finished tool after a short beat so the result is glanceable. */
@@ -18,11 +20,14 @@ function stringify(value: unknown): string {
   }
 }
 
-const STATUS = {
-  running: { variant: 'caution' as const, label: 'Running', pulse: true },
-  done: { variant: 'positive' as const, label: 'Done', pulse: false },
-  error: { variant: 'negative' as const, label: 'Failed', pulse: false },
-  aborted: { variant: 'neutral' as const, label: 'Stopped', pulse: false },
+const STATUS: Record<
+  DisplayToolCall['status'],
+  { variant: 'caution' | 'positive' | 'negative' | 'neutral'; labelKey: MessageKey; pulse: boolean }
+> = {
+  running: { variant: 'caution', labelKey: 'tools.running', pulse: true },
+  done: { variant: 'positive', labelKey: 'tools.done', pulse: false },
+  error: { variant: 'negative', labelKey: 'tools.failed', pulse: false },
+  aborted: { variant: 'neutral', labelKey: 'tools.stopped', pulse: false },
 };
 
 function Block({ label, body, tone }: { label: string; body: string; tone?: 'negative' }) {
@@ -42,6 +47,7 @@ function Block({ label, body, tone }: { label: string; body: string; tone?: 'neg
 }
 
 export default function ToolCallCard({ call }: { call: DisplayToolCall }) {
+  const t = useT();
   const status = STATUS[call.status];
   const [open, setOpen] = useState(call.status !== 'done');
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -93,22 +99,24 @@ export default function ToolCallCard({ call }: { call: DisplayToolCall }) {
             {call.name}
           </code>
           {images.length > 0 && (
-            <span className="text-[10px] text-fg-tertiary">{images.length} img</span>
+            <span className="text-[10px] text-fg-tertiary">
+              {t('tools.images', { count: images.length })}
+            </span>
           )}
           <Badge variant={status.variant} className="ml-auto">
             <span
               className={cn('size-1 rounded-full bg-current', status.pulse && 'animate-pulse-dot')}
             />
-            {status.label}
+            {t(status.labelKey)}
           </Badge>
         </summary>
 
         <div className="space-y-2 border-t border-line px-2.5 py-2 pl-[26px]">
-          <Block label="Arguments" body={stringify(call.args)} />
+          <Block label={t('tools.arguments')} body={stringify(call.args)} />
           {images.length > 0 && (
             <div className="space-y-0.5">
               <div className="text-[10px] font-medium tracking-[0.06em] text-fg-tertiary uppercase">
-                Preview
+                {t('tools.preview')}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {images.map((src, i) => (
@@ -131,13 +139,13 @@ export default function ToolCallCard({ call }: { call: DisplayToolCall }) {
             </div>
           )}
           {call.status === 'done' && (
-            <Block label="Result" body={stringify(redactImages(call.result))} />
+            <Block label={t('tools.result')} body={stringify(redactImages(call.result))} />
           )}
           {call.status === 'error' && (
-            <Block label="Error" body={call.error ?? ''} tone="negative" />
+            <Block label={t('tools.error')} body={call.error ?? ''} tone="negative" />
           )}
           {call.status === 'aborted' && (
-            <Block label="Result" body="Stopped before this tool reported back." />
+            <Block label={t('tools.result')} body={t('tools.stoppedBeforeResult')} />
           )}
         </div>
       </details>
