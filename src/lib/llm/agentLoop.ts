@@ -10,7 +10,7 @@ import {
 import { tools } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
-import { dropDanglingToolCalls, sanitizeModelMessages } from './sanitizeMessages';
+import { dropDanglingToolCalls, elideStaleSnapshots, sanitizeModelMessages } from './sanitizeMessages';
 
 /** Assistant + tool messages produced by a single streamText call. */
 export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
@@ -45,7 +45,16 @@ just seen, since uids only stay valid until the next snapshot. Prefer fill_form 
 fill calls. If a tool call fails because a uid is stale or an element isn't visible, take a fresh snapshot
 and retry rather than guessing.`;
 
-export const MAX_STEPS = 20;
+/**
+ * A step is one model round trip plus its tools, and browser work eats them
+ * fast: the snapshot→act→snapshot rhythm the system prompt asks for costs two
+ * steps per interaction, so a form fill and submit is already a dozen.
+ *
+ * The ceiling that actually bites first is context, not this number — see the
+ * prepareStep elision below, without which a long turn dies of a full context
+ * window well before reaching the limit.
+ */
+export const MAX_STEPS = 40;
 
 export function buildMessages(history: ModelMessage[], userMessage: string): ModelMessage[] {
   return [...history, { role: 'user', content: userMessage }];
@@ -91,6 +100,15 @@ export async function* streamAgentEvents(
       tools: toolset,
       stopWhen: stepCountIs(maxSteps),
       abortSignal,
+      // Every step resends the whole turn so far. Snapshots are the one result
+      // big enough to matter (up to ~12K tokens each) and the one that stops
+      // being true — its uids die the moment a newer snapshot exists — so a
+      // long turn otherwise carries several stale copies of the same page and
+      // exhausts the context window long before the step limit. The override
+      // carries forward, so each step elides only what the last one added.
+      prepareStep: ({ messages: stepMessages }) => ({
+        messages: elideStaleSnapshots(stepMessages),
+      }),
     });
 
     for await (const part of result.fullStream) {
