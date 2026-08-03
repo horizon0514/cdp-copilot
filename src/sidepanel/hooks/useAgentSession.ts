@@ -4,10 +4,10 @@ import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
 import { getBoundTabId, ensureSession, releaseStaleBinding } from '../../lib/tools/context';
+import { createTurnSequencer, type TurnSequencer } from '../lib/turnSequencer';
 
 export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
-  const modelMessages = useConversationStore((s) => s.modelMessages);
   const isStreaming = useConversationStore((s) => s.isStreaming);
   const threadId = useConversationStore((s) => s.threadId);
   const threadList = useConversationStore((s) => s.threadList);
@@ -28,26 +28,27 @@ export function useAgentSession(settings: Settings | null) {
   const commitTurn = useConversationStore((s) => s.commitTurn);
   const setStreaming = useConversationStore((s) => s.setStreaming);
 
-  /** Live turn's controller — `stop()` is the only way out of a long agent run. */
-  const abortRef = useRef<AbortController | null>(null);
+  const sequencerRef = useRef<TurnSequencer | null>(null);
+  sequencerRef.current ??= createTurnSequencer();
 
   // The side panel closes mid-turn often enough that leaving the run detached
   // would keep driving the page with nothing rendering it.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => {
+    const sequencer = sequencerRef.current;
+    return () => sequencer?.abort();
+  }, []);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!settings || !text.trim()) return;
+  const runTurn = useCallback(
+    async (text: string, signal: AbortSignal) => {
+      if (!settings) return;
 
-      // Snapshot history before mutating display state — this is the faithful
-      // ModelMessage trail (tool calls/results included), not the UI text.
-      const history = modelMessages;
+      // Read history from the store rather than a subscribed value: a turn that
+      // takes over from another starts before React has re-rendered with the
+      // previous turn's committed messages.
+      const history = useConversationStore.getState().modelMessages;
       addUserMessage(text);
       const assistantId = startAssistantMessage();
       setStreaming(true);
-
-      const controller = new AbortController();
-      abortRef.current = controller;
 
       // Bind the turn to the current session tab (or active tab on first use)
       // and track any tabs new_page opens for cleanup when the turn ends.
@@ -59,7 +60,7 @@ export function useAgentSession(settings: Settings | null) {
       }
 
       try {
-        for await (const event of runAgentTurn(settings, history, text, controller.signal)) {
+        for await (const event of runAgentTurn(settings, history, text, signal)) {
           switch (event.type) {
             case 'text-delta':
               appendAssistantText(assistantId, event.text);
@@ -85,7 +86,6 @@ export function useAgentSession(settings: Settings | null) {
         }
       } finally {
         abandonRunningToolCalls(assistantId);
-        abortRef.current = null;
         setStreaming(false);
         await agentTabTracker.cleanup();
         await persist();
@@ -93,7 +93,6 @@ export function useAgentSession(settings: Settings | null) {
     },
     [
       settings,
-      modelMessages,
       addUserMessage,
       startAssistantMessage,
       appendAssistantText,
@@ -110,8 +109,23 @@ export function useAgentSession(settings: Settings | null) {
   );
 
   const stopAgent = useCallback(() => {
-    abortRef.current?.abort();
+    sequencerRef.current?.abort();
   }, []);
+
+  /**
+   * Sending while the agent runs takes the turn over: stop it, let it commit
+   * what it got done, then start fresh with that in history. Queueing behind the
+   * running turn was the other option, but the whole point of typing mid-run is
+   * that the agent is going the wrong way — watching it finish first is the
+   * thing being complained about.
+   */
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      await sequencerRef.current?.takeOver((signal) => runTurn(text, signal));
+    },
+    [runTurn],
+  );
 
   // Leaving a conversation drops a stale tab binding with it — see
   // releaseStaleBinding. Both stores refuse to switch mid-turn anyway; the

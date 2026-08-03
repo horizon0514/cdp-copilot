@@ -77,15 +77,15 @@ function Composer({
           ref={inputRef}
           rows={1}
           value={input}
-          disabled={isStreaming}
-          placeholder={isStreaming ? 'Working on this page…' : 'Ask anything about this page…'}
+          // Deliberately usable mid-run: sending takes the turn over.
+          placeholder={isStreaming ? 'Type to redirect the agent…' : 'Ask anything about this page…'}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             // IME (e.g. Chinese Pinyin): Enter confirms composition — don't send.
             if (e.nativeEvent.isComposing || e.keyCode === 229) return;
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              if (!input.trim() || isStreaming) return;
+              if (!input.trim()) return;
               // Submit via form requestSubmit so the form onSubmit path stays consistent.
               e.currentTarget.form?.requestSubmit();
             }
@@ -101,9 +101,17 @@ function Composer({
                   <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:180ms]" />
                   <span className="animate-pulse-dot size-1 rounded-full bg-current [animation-delay:360ms]" />
                 </span>
-                Agent running
+                {canSend ? 'Takes over' : 'Agent running'}
                 <span className="mx-0.5 text-line-strong">·</span>
-                <Kbd>esc</Kbd> stop
+                {canSend ? (
+                  <>
+                    <Kbd>↵</Kbd> redirect
+                  </>
+                ) : (
+                  <>
+                    <Kbd>esc</Kbd> stop
+                  </>
+                )}
               </span>
             ) : (
               <>
@@ -113,29 +121,33 @@ function Composer({
               </>
             )}
           </span>
-          {isStreaming ? (
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="danger"
-              onClick={onStop}
-              aria-label="Stop the agent"
-              title="Stop (Esc)"
-            >
-              <Square className="size-2.5 fill-current" strokeWidth={0} />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon-sm"
-              variant={canSend ? 'default' : 'subtle'}
-              disabled={!canSend}
-              aria-label="Send"
-              className={cn(canSend && 'shadow-sm')}
-            >
-              <ArrowUp className="size-3.5" strokeWidth={2.5} />
-            </Button>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {isStreaming && (
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="danger"
+                onClick={onStop}
+                aria-label="Stop the agent"
+                title="Stop (Esc)"
+              >
+                <Square className="size-2.5 fill-current" strokeWidth={0} />
+              </Button>
+            )}
+            {/* Stays mounted while streaming so a mid-run message can take over. */}
+            {(!isStreaming || canSend) && (
+              <Button
+                type="submit"
+                size="icon-sm"
+                variant={canSend ? 'default' : 'subtle'}
+                disabled={!canSend}
+                aria-label={isStreaming ? 'Send, taking over from the agent' : 'Send'}
+                className={cn(canSend && 'shadow-sm')}
+              >
+                <ArrowUp className="size-3.5" strokeWidth={2.5} />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </form>
@@ -197,7 +209,7 @@ export default function App() {
   }, [input, messages.length === 0]);
 
   const submit = () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim()) return;
     void sendMessage(input);
     setInput('');
   };
@@ -214,7 +226,7 @@ export default function App() {
 
   if (loading || !hydrated) return <BootSkeleton />;
 
-  const canSend = !isStreaming && input.trim().length > 0;
+  const canSend = input.trim().length > 0;
   const isEmpty = messages.length === 0;
 
   return (
@@ -274,7 +286,11 @@ export default function App() {
             </div>
           ) : (
             <div className="relative flex min-h-0 flex-1 flex-col">
-              <ChatThread messages={messages} isStreaming={isStreaming} />
+              <ChatThread
+                messages={messages}
+                isStreaming={isStreaming}
+                onSend={(text) => void sendMessage(text)}
+              />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-bg from-40% via-bg/85 to-transparent px-3 pt-10 pb-3">
                 <div className="pointer-events-auto w-full">
                   <Composer
