@@ -46,7 +46,7 @@ test.describe('live LLM', () => {
   }
 
   async function ask(panel: Page, prompt: string) {
-    await panel.getByPlaceholder(/Ask anything about this page/i).fill(prompt);
+    await panel.getByPlaceholder(/Ask anything/i).fill(prompt);
     await panel.getByRole('button', { name: 'Send' }).click();
   }
 

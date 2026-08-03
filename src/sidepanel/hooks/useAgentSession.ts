@@ -3,6 +3,8 @@ import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
 import { Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
+import { listPages } from '../../lib/pages/PageManager';
+import { buildTabContext, parseTabMentions, toDisplayText } from '../../lib/pages/tabMentions';
 import {
   getBoundTabId,
   ensureSession,
@@ -53,7 +55,12 @@ export function useAgentSession(settings: Settings | null) {
       const { messages: shown, modelMessages: history } = useConversationStore.getState();
       const opensTheThread = shown.length === 0;
 
-      addUserMessage(text);
+      // The transcript shows what was typed (`@juejin.cn`); the model gets the
+      // same text plus the tab ids behind those mentions, resolved now rather
+      // than when they were typed, so a tab closed since is reported as closed.
+      const mentions = parseTabMentions(text);
+      const shownText = toDisplayText(text);
+      addUserMessage(shownText);
       const assistantId = startAssistantMessage();
       setStreaming(true);
 
@@ -67,8 +74,11 @@ export function useAgentSession(settings: Settings | null) {
         agentTabTracker.beginTurn(getBoundTabId());
       }
 
+      const context = mentions.length ? buildTabContext(mentions, await listPages()) : null;
+      const prompt = context ? `${shownText}\n\n${context}` : shownText;
+
       try {
-        for await (const event of runAgentTurn(settings, history, text, signal)) {
+        for await (const event of runAgentTurn(settings, history, prompt, signal)) {
           switch (event.type) {
             case 'text-delta':
               appendAssistantText(assistantId, event.text);
@@ -87,7 +97,9 @@ export function useAgentSession(settings: Settings | null) {
               break;
             case 'done':
               setMessageStop(assistantId, event.stop);
-              commitTurn(text, event.responseMessages);
+              // History keeps the resolved form: next turn's model should still
+              // be able to see which tab @juejin.cn meant.
+              commitTurn(prompt, event.responseMessages);
               console.debug('[cdp-copilot] turn ended', event.stop);
               break;
           }

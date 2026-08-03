@@ -6,6 +6,8 @@ import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThrea
 import SettingsPanel from './components/SettingsPanel';
 import TabPicker from './components/TabPicker';
 import ThreadSwitcher from './components/ThreadSwitcher';
+import TabMentionMenu from './components/TabMentionMenu';
+import { useTabMentions } from './hooks/useTabMentions';
 import { Button } from './components/ui/button';
 import { Textarea } from './components/ui/textarea';
 import { cn } from './lib/utils';
@@ -60,8 +62,18 @@ function Composer({
   onSubmit: (e: FormEvent) => void;
   onStop: () => void;
 }) {
+  const mentions = useTabMentions(input, setInput, inputRef);
+
   return (
-    <form className="w-full" onSubmit={onSubmit}>
+    <form className="relative w-full" onSubmit={onSubmit}>
+      {mentions.open && (
+        <TabMentionMenu
+          items={mentions.items}
+          activeIndex={mentions.activeIndex}
+          onHover={mentions.setActiveIndex}
+          onPick={mentions.choose}
+        />
+      )}
       <div
         className={cn(
           'rounded-2xl border border-line bg-surface/95 px-3 pt-2.5 pb-2 shadow-[var(--shadow-popover)] backdrop-blur-md transition-[border-color,box-shadow] duration-200',
@@ -78,11 +90,21 @@ function Composer({
           rows={1}
           value={input}
           // Deliberately usable mid-run: sending takes the turn over.
-          placeholder={isStreaming ? 'Type to redirect the agent…' : 'Ask anything about this page…'}
-          onChange={(e) => setInput(e.target.value)}
+          placeholder={
+            isStreaming ? 'Type to redirect the agent…' : 'Ask anything — @ to reference a tab'
+          }
+          onChange={(e) => {
+            setInput(e.target.value);
+            mentions.sync();
+          }}
+          onClick={mentions.sync}
+          onSelect={mentions.sync}
+          onBlur={mentions.close}
           onKeyDown={(e) => {
             // IME (e.g. Chinese Pinyin): Enter confirms composition — don't send.
             if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+            // The @-menu gets first refusal: its Enter picks a tab, not send.
+            if (mentions.handleKeyDown(e)) return;
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               if (!input.trim()) return;
