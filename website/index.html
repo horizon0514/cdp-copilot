@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagehand — AI that works the current tab</title>
+    <meta
+      name="description"
+      content="Pagehand is a Chrome side-panel AI that reads and automates the current tab via the Chrome DevTools Protocol. Bring your own API key."
+    />
+    <meta property="og:title" content="Pagehand" />
+    <meta
+      property="og:description"
+      content="AI that reads and automates the current Chrome tab via CDP. Side panel. Your keys. No cloud middleman."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&family=Syne:wght@650;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="hero">
+      <div class="hero-stage" aria-hidden="true">
+        <div class="hero-grid"></div>
+        <pre class="hero-tree">RootWebArea "Checkout"
+  banner
+    link "Pagehand"
+    navigation
+  main
+    heading "Order summary"
+    StaticText "$48.00"
+    form
+      textbox "Email"  ← focus
+      textbox "Card"
+      button "Pay now"
+  complementary
+    StaticText "Console · 0 errors"
+    StaticText "Network · 12 req"</pre>
+        <div class="hero-cursor"></div>
+      </div>
+
+      <div class="wrap">
+        <nav class="nav" aria-label="Primary">
+          <a class="brand" href="/">
+            <img src="/icon.png" alt="" width="28" height="28" />
+            Pagehand
+          </a>
+          <div class="nav-links">
+            <a class="hide-sm" href="#how">How it works</a>
+            <a class="hide-sm" href="#privacy">Privacy</a>
+            <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+          </div>
+        </nav>
+
+        <div class="hero-content">
+          <p class="hero-brand">
+            <img src="/icon.png" alt="" width="56" height="56" />
+            Pagehand
+          </p>
+          <h1>AI that puts a hand on the current tab.</h1>
+          <p class="hero-lead">
+            Side-panel copilot for Chrome. It reads the page, clicks, fills,
+            and inspects console &amp; network — through CDP, with your own API key.
+          </p>
+          <div class="cta-row">
+            <a
+              class="btn btn-primary"
+              id="install-cta"
+              href="https://github.com/horizon0514/pagehand#setup"
+            >
+              Install from source
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/horizon0514/pagehand">
+              View on GitHub
+            </a>
+          </div>
+          <p class="hero-meta">Manifest V3 · chrome.debugger · BYO OpenAI / Anthropic / DeepSeek</p>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section" id="how">
+        <div class="wrap">
+          <p class="section-label">How it works</p>
+          <h2>The side panel owns the debugger.</h2>
+          <p class="section-lead">
+            No Node sidecar. No MCP bridge. Pagehand talks Chrome DevTools Protocol
+            from inside the extension and drives the tab you are looking at.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>Open the panel</h3>
+              <p><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>, or click the toolbar icon.</p>
+            </li>
+            <li>
+              <h3>Drop in a key</h3>
+              <p>DeepSeek by default — OpenAI, Anthropic, or any OpenAI-compatible endpoint also work.</p>
+            </li>
+            <li>
+              <h3>Ask it to act</h3>
+              <p>Summarize, click, fill forms, chase console errors, or walk a multi-step flow on the live page.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="tools">
+        <div class="wrap">
+          <p class="section-label">Capabilities</p>
+          <h2>Same protocol Puppeteer speaks.</h2>
+          <p class="section-lead">
+            Accessibility snapshots, input, navigation, screenshots, console and network —
+            implemented against CDP domains, not a brittle DOM scraper.
+          </p>
+          <ul class="feature-list">
+            <li>
+              <code>take_snapshot</code>
+              <p>Read the page as a structured accessibility tree with stable uids.</p>
+            </li>
+            <li>
+              <code>click / fill / type</code>
+              <p>Drive forms and UI the way a user would — including select-all before replace.</p>
+            </li>
+            <li>
+              <code>navigate / tabs</code>
+              <p>Move between pages and manage tabs while the agent keeps context.</p>
+            </li>
+            <li>
+              <code>console / network</code>
+              <p>Inspect errors and requests without opening DevTools yourself.</p>
+            </li>
+            <li>
+              <code>evaluate_script</code>
+              <p>Run focused page scripts when reading the tree is not enough.</p>
+            </li>
+            <li>
+              <code>take_screenshot</code>
+              <p>Capture what the tab looks like and keep it in the chat thread.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="wrap">
+          <p class="section-label">Privacy</p>
+          <h2>Your key never leaves your machine for us.</h2>
+          <div class="privacy-box">
+            <p>
+              Pagehand has no backend. API keys stay in <code>chrome.storage.local</code>
+              and are sent only to the model provider you choose. While attached,
+              Chrome shows a “Pagehand is debugging this browser” banner —
+              that is intentional and cannot be hidden.
+              <a href="/privacy">Read the full privacy policy →</a>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-row">
+        <span>© <span id="y"></span> Pagehand</span>
+        <nav aria-label="Footer">
+          <a href="/privacy">Privacy</a>
+          <a href="https://github.com/horizon0514/pagehand">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("y").textContent = String(new Date().getFullYear());
+    </script>
+  </body>
+</html>

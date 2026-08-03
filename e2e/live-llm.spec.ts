@@ -22,7 +22,7 @@ test.describe('live LLM', () => {
   /** Seeds settings, reloads so the panel shows chat, then attaches to a target. */
   async function setUp(panel: Page, targetUrl: string) {
     await panel.evaluate(
-      (settings) => chrome.storage.local.set({ 'cdp-copilot:settings': settings }),
+      (settings) => chrome.storage.local.set({ 'pagehand:settings': settings }),
       { provider: 'deepseek', ...live! },
     );
 
@@ -80,7 +80,7 @@ test.describe('live LLM', () => {
 
   test('reports a bad API key as an error instead of failing silently', async ({ panel, baseURL }) => {
     await panel.evaluate(
-      (settings) => chrome.storage.local.set({ 'cdp-copilot:settings': settings }),
+      (settings) => chrome.storage.local.set({ 'pagehand:settings': settings }),
       { provider: 'openai-compatible', ...live!, apiKey: 'sk-definitely-invalid' },
     );
     await panel.reload();

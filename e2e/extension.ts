@@ -39,7 +39,7 @@ export const test = base.extend<ExtensionFixtures>({
       throw new Error(`No build found at ${DIST}. Run: npm run build:e2e`);
     }
 
-    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-copilot-e2e-'));
+    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pagehand-e2e-'));
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: 'chromium',
       args: [`--disable-extensions-except=${DIST}`, `--load-extension=${DIST}`],

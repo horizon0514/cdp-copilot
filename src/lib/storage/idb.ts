@@ -1,4 +1,4 @@
-const DB_NAME = 'cdp-copilot';
+const DB_NAME = 'pagehand';
 const DB_VERSION = 1;
 const STORE = 'kv';
 

@@ -3,7 +3,7 @@ import { wireNavigationInvalidation } from './navigationInvalidation';
 import { attachConsoleRecorder } from '../console/ConsoleRecorder';
 import { attachNetworkRecorder } from '../network/NetworkRecorder';
 
-const LOCK_KEY = 'cdp-copilot:lock';
+const LOCK_KEY = 'pagehand:lock';
 const LOCK_STALE_MS = 15_000;
 
 interface Lock {
@@ -15,7 +15,7 @@ interface Lock {
 
 export class AlreadyActiveElsewhereError extends Error {
   constructor() {
-    super('cdp-copilot is already active in another window. v1 supports a single active window at a time.');
+    super('Pagehand is already active in another window. v1 supports a single active window at a time.');
     this.name = 'AlreadyActiveElsewhereError';
   }
 }

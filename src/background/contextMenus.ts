@@ -1,8 +1,8 @@
 import { resolveLocale, translate, type LocalePreference } from '../lib/i18n';
 import { getLocalePreference, onLocalePreferenceChanged } from '../lib/i18n/localeStore';
 
-const MENU_ASK_PAGE = 'cdp-copilot-ask-page';
-const MENU_ASK_SELECTION = 'cdp-copilot-ask-selection';
+const MENU_ASK_PAGE = 'pagehand-ask-page';
+const MENU_ASK_SELECTION = 'pagehand-ask-selection';
 
 async function applyMenuTitles(pref: LocalePreference): Promise<void> {
   const locale = resolveLocale(pref);

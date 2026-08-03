@@ -108,7 +108,7 @@ export function useAgentSession(settings: Settings | null) {
               // History keeps the resolved form: next turn's model should still
               // be able to see which tab @juejin.cn meant.
               commitTurn(prompt, event.responseMessages);
-              console.debug('[cdp-copilot] turn ended', event.stop);
+              console.debug('[pagehand] turn ended', event.stop);
               break;
           }
         }

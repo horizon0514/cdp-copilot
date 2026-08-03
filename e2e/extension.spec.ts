@@ -42,7 +42,7 @@ test('shows settings first when no provider is configured', async ({ context, ex
 test('persists provider settings to chrome.storage.local', async ({ panel }) => {
   await panel.evaluate(() =>
     chrome.storage.local.set({
-      'cdp-copilot:settings': {
+      'pagehand:settings': {
         provider: 'openai-compatible',
         apiKey: 'test-key',
         model: 'test-model',
@@ -52,8 +52,8 @@ test('persists provider settings to chrome.storage.local', async ({ panel }) => 
   );
 
   const stored = await panel.evaluate(async () => {
-    const r = await chrome.storage.local.get('cdp-copilot:settings');
-    return r['cdp-copilot:settings'];
+    const r = await chrome.storage.local.get('pagehand:settings');
+    return r['pagehand:settings'];
   });
 
   expect(stored).toMatchObject({ provider: 'openai-compatible', model: 'test-model' });

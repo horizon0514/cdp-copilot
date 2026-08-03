@@ -22,7 +22,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
   const pending: PendingPrompt = {
     tabId: tab.id,
-    selectionText: info.menuItemId === 'cdp-copilot-ask-selection' ? info.selectionText : undefined,
+    selectionText: info.menuItemId === 'pagehand-ask-selection' ? info.selectionText : undefined,
   };
 
   void chrome.storage.session.set({ pendingPrompt: pending }).then(() => {
@@ -33,10 +33,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 /**
  * Side panel opens a long-lived port on load. When the panel is closed the port
  * disconnects and we detach every debugger target this extension still holds —
- * that's what clears Chrome's "cdp-copilot is debugging this browser" banner.
+ * that's what clears Chrome's "Pagehand is debugging this browser" banner.
  */
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'cdp-copilot-sidepanel') return;
+  if (port.name !== 'pagehand-sidepanel') return;
 
   port.onDisconnect.addListener(() => {
     void chrome.debugger.getTargets().then((targets) => {

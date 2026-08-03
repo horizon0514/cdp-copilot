@@ -13,7 +13,7 @@ if (import.meta.env.VITE_E2E === 'true') {
 
 // Keep a port open for the lifetime of the side panel. Background detaches the
 // debugger when this port drops (panel closed / crashed).
-const sidepanelPort = chrome.runtime.connect({ name: 'cdp-copilot-sidepanel' });
+const sidepanelPort = chrome.runtime.connect({ name: 'pagehand-sidepanel' });
 sidepanelPort.onDisconnect.addListener(() => {
   // Local cleanup if the document is still alive long enough.
   void sessionRegistry.detach().catch(() => {});

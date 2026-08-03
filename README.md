@@ -1,10 +1,12 @@
-# cdp-copilot
+# Pagehand
 
-An AI copilot, packaged as a Chrome extension, that reads and automates the
-current tab using the Chrome DevTools Protocol — no external MCP client or
-Node process required. Bring your own OpenAI / Anthropic / OpenAI-compatible
-API key, chat with it from the side panel, and let it read page content,
-click, fill forms, navigate, and inspect console/network activity.
+**Site:** https://pagehand.vercel.app · **Privacy:** https://pagehand.vercel.app/privacy
+
+An AI that lives in Chrome’s side panel and reads / automates the current tab
+via the Chrome DevTools Protocol — no external MCP client or Node process
+required. Bring your own OpenAI / Anthropic / OpenAI-compatible API key, chat
+with it from the side panel, and let it read page content, click, fill forms,
+navigate, and inspect console/network activity.
 
 This is a from-scratch port of the *capability* behind
 [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp)
@@ -44,13 +46,22 @@ API key. It defaults to DeepSeek (`deepseek-v4-flash`), so a key is the only
 thing you have to supply; OpenAI, Anthropic and any OpenAI-compatible endpoint
 are in the same dropdown.
 
+## Packaging for the Chrome Web Store
+
+```bash
+npm run pack     # production build + zip → pagehand.zip
+```
+
+Upload `pagehand.zip` at [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+Privacy policy: hosted on the marketing site under `/privacy`.
+
 ## Security notes
 
 - Your API key is stored **unencrypted** in `chrome.storage.local`, scoped to
   this browser profile. It is never synced to your Google account and never
   leaves your machine except in requests to the provider you configured.
 - While the extension is attached to a tab, Chrome shows a persistent
-  **"cdp-copilot is debugging this browser"** banner on that tab. This is a
+  **"Pagehand is debugging this browser"** banner on that tab. This is a
   Chrome safety feature and cannot be suppressed — it's your signal that the
   extension currently has full CDP-level access to that tab's content.
 - Custom OpenAI-compatible base URLs (OpenRouter, Azure OpenAI, local Ollama,

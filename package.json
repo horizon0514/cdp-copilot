@@ -1,18 +1,26 @@
 {
-  "name": "cdp-copilot",
+  "name": "pagehand",
   "version": "0.1.0",
   "private": true,
-  "description": "AI copilot that reads and automates the current tab via the Chrome DevTools Protocol.",
+  "description": "Pagehand — AI that reads and automates the current tab via the Chrome DevTools Protocol.",
+  "homepage": "https://pagehand.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/horizon0514/pagehand.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "pack": "npm run build && cd dist && zip -r ../pagehand.zip .",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src e2e",
     "test": "vitest run",
     "test:watch": "vitest",
     "build:e2e": "VITE_E2E=true vite build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "website:dev": "npx --yes serve website -l 5174",
+    "website:deploy": "cd website && vercel --prod"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.0",
