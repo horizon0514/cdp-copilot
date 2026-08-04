@@ -66,6 +66,26 @@ GitHub Actions owns the cut:
 The marketing site download buttons always resolve to the latest Release (`/releases/latest/…`), and [`website/release.js`](website/release.js) fills in the current tag label. No website edit per release.
 
 Pushing an annotated `v*` tag yourself still triggers the same pack + release path.
+
+## Website
+
+The marketing site under [`website/`](website/) deploys via **Vercel Git integration**
+(not GitHub Actions):
+
+1. In the [Vercel dashboard](https://vercel.com), connect this GitHub repo
+2. Set **Root Directory** to `website`
+3. Prefer enabling skip-deploy when changes are outside that root (so extension-only commits don’t redeploy the site)
+
+After that:
+
+- push / merge to `main` → production (`https://pagehand.vercel.app`)
+- open a PR that touches `website/` → preview deployment
+
+Local emergency deploy (optional): `npm run website:deploy` (needs Vercel CLI login).
+
+You can remove the unused GitHub secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and
+`VERCEL_PROJECT_ID` if they were only used by the old Actions deploy workflow.
+
 ## Security notes
 
 - Your API key is stored **unencrypted** in `chrome.storage.local`, scoped to
