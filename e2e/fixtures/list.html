@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>pagehand e2e paginated list</title>
+  </head>
+  <body>
+    <h1>Catalogue</h1>
+    <p id="page-indicator">Page 1 of 3</p>
+    <ul id="item-list"></ul>
+    <button id="next" type="button">Next page</button>
+
+    <script>
+      // A paginated list whose answer cannot be produced from any single page:
+      // the expensive items are spread across all three, so the agent has to
+      // walk to the end. How many round trips that takes is what we measure.
+      //
+      // Scoped in an IIFE deliberately: a global `items` array would let a
+      // script read all thirty rows without ever paginating, and the number this
+      // fixture exists to measure would stop meaning anything. The container is
+      // #item-list rather than #items for the same reason — an element id
+      // becomes a global of that name, which would make `items` ambiguous.
+      (() => {
+      const PAGES = 3;
+      const PER_PAGE = 10;
+
+      const items = Array.from({ length: PAGES * PER_PAGE }, (_, i) => {
+        const n = i + 1;
+        return {
+          name: `Item-${String(n).padStart(2, '0')}`,
+          // Every fourth item is the expensive one: 04, 08 … 28.
+          price: n % 4 === 0 ? 120 : 20,
+        };
+      });
+
+      let page = 1;
+
+      function render() {
+        document.getElementById('page-indicator').textContent = `Page ${page} of ${PAGES}`;
+        document.getElementById('item-list').innerHTML = items
+          .slice((page - 1) * PER_PAGE, page * PER_PAGE)
+          .map((it) => `<li class="item"><span class="name">${it.name}</span> — <span class="price">$${it.price}</span></li>`)
+          .join('');
+        document.getElementById('next').disabled = page === PAGES;
+      }
+
+      document.getElementById('next').addEventListener('click', () => {
+        if (page < PAGES) {
+          page += 1;
+          render();
+        }
+      });
+
+      render();
+      })();
+    </script>
+  </body>
+</html>

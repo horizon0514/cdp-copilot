@@ -1,6 +1,5 @@
 import { test, expect } from './extension';
-import { liveLlmConfig } from './env';
-import type { Page } from '@playwright/test';
+import { live, setUpLiveModel, ask } from './liveTurn';
 
 /**
  * The only test that exercises the whole stack for real: a live model decides
@@ -11,47 +10,14 @@ import type { Page } from '@playwright/test';
  * stay unaffected. It costs tokens and depends on the network and on model
  * behaviour, so assertions check observable effects rather than exact wording.
  */
-const live = liveLlmConfig();
-
 test.describe('live LLM', () => {
   test.skip(!live, 'Set DEEPSEEK_API_KEY in .env.local to run this.');
 
   // A real multi-step agent turn: several API round trips plus tool execution.
   test.setTimeout(180_000);
 
-  /** Seeds settings, reloads so the panel shows chat, then attaches to a target. */
-  async function setUp(panel: Page, targetUrl: string) {
-    await panel.evaluate(
-      (settings) => chrome.storage.local.set({ 'pagehand:settings': settings }),
-      { provider: 'deepseek', ...live! },
-    );
-
-    // Reload for the panel to pick up settings — this also drops the previous JS
-    // context, so the debugger must be re-attached afterwards.
-    await panel.reload();
-    await panel.waitForFunction(() => typeof window.__cdp !== 'undefined');
-
-    const target = await panel.context().newPage();
-    await target.goto(targetUrl);
-
-    const tabId = await panel.evaluate(async (url) => {
-      const tabs = await chrome.tabs.query({});
-      const tab = tabs.find((t) => t.url === url);
-      if (tab?.id === undefined) throw new Error(`no tab for ${url}`);
-      await window.__cdp.attach(tab.id);
-      return tab.id;
-    }, target.url());
-
-    return { target, tabId };
-  }
-
-  async function ask(panel: Page, prompt: string) {
-    await panel.getByPlaceholder(/Ask anything/i).fill(prompt);
-    await panel.getByRole('button', { name: 'Send' }).click();
-  }
-
   test('reads the page and answers from its real content', async ({ panel, baseURL }) => {
-    const { target } = await setUp(panel, `${baseURL}/page.html`);
+    const { target } = await setUpLiveModel(panel, `${baseURL}/page.html`);
 
     await ask(panel, 'Use take_snapshot, then reply with the exact text of the h1 heading. Be brief.');
 
@@ -64,7 +30,7 @@ test.describe('live LLM', () => {
   });
 
   test('drives the page: a model-chosen click actually changes it', async ({ panel, baseURL }) => {
-    const { target } = await setUp(panel, `${baseURL}/page.html`);
+    const { target } = await setUpLiveModel(panel, `${baseURL}/page.html`);
 
     await ask(
       panel,

@@ -1,6 +1,10 @@
 import { sessionRegistry } from '../lib/debugger-bridge/sessionRegistry';
 import { tools } from '../lib/tools';
 import { activateLedger, getActiveLedger } from '../lib/ledger/activeLedger';
+// Only the side panel ever loads this module (see sidepanel/main.tsx), so
+// reaching into its store here is safe — and it is the only place the tool-call
+// sequence of a real agent turn exists in one piece.
+import { useConversationStore } from '../sidepanel/state/conversationStore';
 
 /**
  * Test-only bridge. Playwright can load this page (an extension page, so it has
@@ -34,6 +38,26 @@ export function installExposedTestApi(): void {
       },
 
       toolNames: () => Object.keys(tools),
+
+      /**
+       * The transcript of the current thread, reduced to what a measurement
+       * needs: which tools ran, in order, and how the turn ended. Reading the
+       * store beats scraping the rendered transcript — the DOM collapses and
+       * re-orders tool cards, and a round-trip count has to be exact.
+       */
+      transcript: () => {
+        const { messages, isStreaming } = useConversationStore.getState();
+        return {
+          isStreaming,
+          messages: messages.map((m) => ({
+            role: m.role,
+            text: m.text,
+            toolCalls: m.toolCalls.map((tc) => ({ name: tc.name, status: tc.status })),
+            stop: m.stop ?? null,
+            error: m.error ?? null,
+          })),
+        };
+      },
 
       // The ledger tools write to whichever ledger is active. In the app the
       // side panel activates one per thread; tests set it explicitly for the
