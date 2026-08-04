@@ -19,6 +19,13 @@ http
       return;
     }
 
+    // A response body well past the get_network_request cap (20K chars).
+    if (url.pathname === '/api/large.json') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, blob: 'Z'.repeat(40_000) }));
+      return;
+    }
+
     const name = url.pathname === '/' ? '/page.html' : url.pathname;
     try {
       const body = await fs.readFile(path.join(root, path.normalize(name).replace(/^(\.\.[/\\])+/, '')));

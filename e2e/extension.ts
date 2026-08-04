@@ -6,12 +6,24 @@ import fs from 'node:fs';
 const DIST = path.resolve(import.meta.dirname, '..', 'dist');
 
 /** Shape of the test bridge installed by src/e2e/hook.ts. */
+export interface StoredLedger {
+  threadId: string;
+  goal: string | null;
+  plan: { text: string; status: string }[];
+  findings: { key: string; summary: string; data?: Record<string, unknown> }[];
+  notes: string[];
+}
+
 export interface CdpTestApi {
   attach(tabId: number): Promise<unknown>;
   detach(): Promise<void>;
   attachedTabId(): number | null;
   call(name: string, args?: unknown): Promise<unknown>;
   toolNames(): string[];
+  ledger: {
+    activate(threadId: string): Promise<StoredLedger>;
+    get(): StoredLedger | null;
+  };
 }
 
 declare global {

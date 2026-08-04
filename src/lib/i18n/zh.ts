@@ -104,6 +104,17 @@ export const zh: Messages = {
   'settings.close': '关闭设置',
   'settings.permissionDenied': '未获得 {origin} 的权限 — 无法使用此端点。',
 
+  'ledger.title': '任务账本',
+  'ledger.planProgress': '{done}/{total} 步',
+  'ledger.findingsCount': '{count} 条发现',
+  'ledger.plan': '计划',
+  'ledger.findings': '发现',
+  'ledger.notes': '交接备注',
+  'ledger.copy': '复制发现（Markdown）',
+  'ledger.copied': '已复制',
+  'ledger.expand': '展开任务账本',
+  'ledger.collapse': '收起任务账本',
+
   'menu.askPage': '用 AI 询问此页面',
   'menu.askSelection': '用 AI 询问选中内容',
 };

@@ -1,5 +1,6 @@
 import { sessionRegistry } from '../lib/debugger-bridge/sessionRegistry';
 import { tools } from '../lib/tools';
+import { activateLedger, getActiveLedger } from '../lib/ledger/activeLedger';
 
 /**
  * Test-only bridge. Playwright can load this page (an extension page, so it has
@@ -33,6 +34,15 @@ export function installExposedTestApi(): void {
       },
 
       toolNames: () => Object.keys(tools),
+
+      // The ledger tools write to whichever ledger is active. In the app the
+      // side panel activates one per thread; tests set it explicitly for the
+      // same reason attachment is explicit — deterministic control beats
+      // depending on React mount timing.
+      ledger: {
+        activate: (threadId: string) => activateLedger(threadId),
+        get: () => getActiveLedger(),
+      },
     },
   });
 }

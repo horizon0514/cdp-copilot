@@ -5,9 +5,15 @@ import { evaluate_script } from './evaluateTool';
 import { take_screenshot } from './screenshotTool';
 import { list_console_messages, get_console_message } from './consoleTools';
 import { list_network_requests, get_network_request } from './networkTools';
+import { update_task_ledger } from './ledgerTools';
+import { extract_content } from './extractTool';
+import { web_search } from './searchTool';
+import { control_task, CONTROL_TASK_TOOL } from './controlTools';
 
 export const tools = {
   take_snapshot,
+  extract_content,
+  web_search,
   click,
   hover,
   fill,
@@ -26,4 +32,9 @@ export const tools = {
   get_console_message,
   list_network_requests,
   get_network_request,
+  update_task_ledger,
+  control_task,
 };
+
+/** Ends the current root or episode loop so the orchestrator can interpret it. */
+export { CONTROL_TASK_TOOL };
