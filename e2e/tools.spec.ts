@@ -181,6 +181,50 @@ test('captures real network requests including status', async ({ panel, openTarg
   expect(detail.body).toContain('"ok":true');
 });
 
+test('evaluate_script truncates an oversized return instead of flooding context', async ({
+  panel,
+  openTarget,
+}) => {
+  await openTarget('/page.html');
+
+  const small = await callTool<{ value: unknown; truncated?: boolean }>(panel, 'evaluate_script', {
+    function: '() => "tiny"',
+  });
+  expect(small).toEqual({ value: 'tiny' });
+
+  const big = await callTool<{ value: unknown; truncated?: boolean; note?: string }>(
+    panel,
+    'evaluate_script',
+    { function: '() => "Z".repeat(30000)' },
+  );
+  expect(big.truncated).toBe(true);
+  expect(big.note).toMatch(/smaller/i);
+  expect(String(big.value).length).toBeLessThan(9000);
+});
+
+test('get_network_request caps a huge response body', async ({ panel, openTarget }) => {
+  const { page } = await openTarget('/large.html');
+  // Reload while attached so the recorder captures the oversized fetch.
+  await callTool(panel, 'navigate_page', { type: 'reload' });
+  await expect(page.locator('#fetched')).toHaveText('large fetch done');
+
+  const { requests } = await callTool<{ requests: { reqid: number; url: string }[] }>(
+    panel,
+    'list_network_requests',
+  );
+  const large = requests.find((r) => r.url.includes('/api/large.json'));
+  expect(large, 'large.json request was not recorded').toBeDefined();
+
+  const detail = await callTool<{ body: string | null; bodyTruncated?: boolean }>(
+    panel,
+    'get_network_request',
+    { reqid: large!.reqid },
+  );
+  expect(detail.bodyTruncated).toBe(true);
+  expect(detail.body!.length).toBeLessThan(21_000);
+  expect(detail.body).toContain('truncated');
+});
+
 test('navigate_page follows a URL and clears per-page state', async ({ panel, openTarget }) => {
   const { page } = await openTarget('/page.html');
   await reloadWhileAttached(panel, page);

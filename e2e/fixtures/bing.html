@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>bing-shaped results fixture</title>
+  </head>
+  <body>
+    <!-- Mirrors the parts of Bing's results DOM that web_search's extractor
+         targets (#b_results > li.b_algo, h2 a, .b_caption p), so the selectors
+         are exercised against a real renderer without hitting the network.
+         Includes noise (ads, non-algo blocks) that the extractor must skip. -->
+    <ol id="b_results">
+      <li class="b_ad"><h2><a href="https://ad.example/x">Sponsored — ignore me</a></h2></li>
+      <li class="b_algo">
+        <h2><a href="https://example.com/one">First Result Title</a></h2>
+        <div class="b_caption"><p>Snippet for the first result.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://example.com/two">Second Result Title</a></h2>
+        <div class="b_caption"><p>Snippet for the second result.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://example.com/three">Third Result Title</a></h2>
+        <div class="b_caption"><p>Snippet for the third result.</p></div>
+      </li>
+      <li class="b_ans">Related searches — not an organic result</li>
+    </ol>
+  </body>
+</html>

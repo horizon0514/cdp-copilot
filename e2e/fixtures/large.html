@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>large payload fixture</title>
+  </head>
+  <body>
+    <h1 id="heading">Large payload fixture</h1>
+    <!-- Written once the oversized fetch resolves, so the test can wait for the
+         network request to be recorded rather than racing it. -->
+    <div id="fetched"></div>
+
+    <script>
+      fetch('/api/large.json')
+        .then((r) => r.text())
+        .then(() => {
+          document.getElementById('fetched').textContent = 'large fetch done';
+        })
+        .catch(() => {});
+    </script>
+  </body>
+</html>

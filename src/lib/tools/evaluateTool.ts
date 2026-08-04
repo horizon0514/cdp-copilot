@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { ensureSession } from './context';
+import { clampJsonValue, MAX_EVALUATE_CHARS } from './limits';
 
 interface EvaluateResult {
   result?: { value?: unknown };
@@ -27,6 +28,11 @@ export const evaluate_script = tool({
     if (exceptionDetails) {
       throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
     }
-    return { value: result?.value ?? null };
+    // The page controls this payload, so it can be arbitrarily large — clamp it
+    // before it lands in the context window.
+    const { value, truncated } = clampJsonValue(result?.value ?? null, MAX_EVALUATE_CHARS);
+    return truncated
+      ? { value, truncated: true, note: 'Result was truncated — return a smaller selection from the script.' }
+      : { value };
   },
 });

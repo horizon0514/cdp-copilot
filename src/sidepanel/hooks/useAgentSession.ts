@@ -13,6 +13,7 @@ import {
   releaseStaleBinding,
 } from '../../lib/tools/context';
 import { createTurnSequencer, type TurnSequencer } from '../lib/turnSequencer';
+import { activateLedger } from '../../lib/ledger/activeLedger';
 
 export function useAgentSession(settings: Settings | null) {
   const messages = useConversationStore((s) => s.messages);
@@ -53,8 +54,16 @@ export function useAgentSession(settings: Settings | null) {
       // Read history from the store rather than a subscribed value: a turn that
       // takes over from another starts before React has re-rendered with the
       // previous turn's committed messages.
-      const { messages: shown, modelMessages: history } = useConversationStore.getState();
+      const {
+        messages: shown,
+        modelMessages: history,
+        threadId: activeThreadId,
+      } = useConversationStore.getState();
       const opensTheThread = shown.length === 0;
+
+      // Ledger tools write to whatever ledger is active; re-assert it here so a
+      // turn never writes into the ledger of a previously viewed thread.
+      if (activeThreadId) await activateLedger(activeThreadId);
 
       // The transcript shows what was typed (`@juejin.cn`); the model gets the
       // same text plus the tab ids behind those mentions, resolved now rather

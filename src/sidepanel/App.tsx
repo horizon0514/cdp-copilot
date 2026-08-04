@@ -5,6 +5,8 @@ import { useAgentSession } from './hooks/useAgentSession';
 import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
 import BoundTabBar from './components/BoundTabBar';
+import LedgerPanel from './components/LedgerPanel';
+import { useLedger } from './hooks/useLedger';
 import ThreadSwitcher from './components/ThreadSwitcher';
 import TabMentionMenu from './components/TabMentionMenu';
 import BrandMark from './components/BrandMark';
@@ -199,6 +201,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const ledger = useLedger(threadId);
 
   useEffect(() => {
     void hydrate();
@@ -282,6 +285,7 @@ export default function App() {
       ) : (
         <>
           <BoundTabBar />
+          <LedgerPanel ledger={ledger} />
 
           {isEmpty ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-3 py-6">

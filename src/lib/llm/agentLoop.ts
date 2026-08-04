@@ -1,16 +1,21 @@
 import {
   streamText,
   stepCountIs,
+  hasToolCall,
   type ModelMessage,
   type LanguageModel,
   type ToolSet,
   type AssistantModelMessage,
   type ToolModelMessage,
 } from 'ai';
-import { tools } from '../tools';
+import { tools, TASK_COMPLETE_TOOL } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
 import { dropDanglingToolCalls, elideStaleSnapshots, sanitizeModelMessages } from './sanitizeMessages';
+import { compactHistory } from './compactHistory';
+import { reflectionNote } from './reflection';
+import { getActiveLedger } from '../ledger/activeLedger';
+import { formatLedgerDigest } from '../ledger/digest';
 
 /** Assistant + tool messages produced by a single streamText call. */
 export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
@@ -43,18 +48,41 @@ copilot — do not claim to be any particular model or vendor, and do not volunt
 Always call take_snapshot before clicking/filling elements you haven't
 just seen, since uids only stay valid until the next snapshot. Prefer fill_form over multiple individual
 fill calls. If a tool call fails because a uid is stale or an element isn't visible, take a fresh snapshot
-and retry rather than guessing.`;
+and retry rather than guessing.
+
+To READ a page — comments, listings, tables, search results, anything you collect rather than click —
+use extract_content, not take_snapshot: it reads the whole visible page in one call and returns only
+compact JSON, so it costs a tiny fraction of a snapshot. For feeds and comment sections that load on
+scroll, alternate: scroll with evaluate_script (e.g. "() => window.scrollBy(0, window.innerHeight * 3)"),
+wait_for or a short pause for content to load, then extract_content again — each round reads everything
+newly rendered at once. Reserve take_snapshot for when you need uids to interact with elements.
+
+For multi-step tasks you have a durable task ledger that survives even when older messages are trimmed
+from this conversation. Start such tasks by calling update_plan with the goal (including the success
+criterion) and a short step plan, and keep statuses current as you go. The moment you discover something
+the task asked for, call save_finding — results that exist only in prose are lost when the conversation
+is trimmed. Before detours and at the end of each work chunk, call add_note with where you left off.
+The current ledger state appears in these instructions each step; treat it — not the conversation — as
+the source of truth for progress, and never re-collect a finding already saved. Trivial single-step
+requests don't need the ledger.
+
+When the goal is met — measured against the success criterion in your ledger — call task_complete to end
+the task; don't keep going to fill steps. If you get stuck, do not repeat the same action hoping for a
+different result: change approach, and if a whole strategy is exhausted, say what's blocking you and stop.
+To search the web, use the web_search tool rather than navigating to a search engine and reading the page:
+it returns clean ranked results. Pass concise keywords, not the raw question, and if results are poor,
+reformulate with different terms rather than retrying the same query. Then navigate_page to a promising
+result and extract_content to read it.`;
 
 /**
- * A step is one model round trip plus its tools, and browser work eats them
- * fast: the snapshot→act→snapshot rhythm the system prompt asks for costs two
- * steps per interaction, so a form fill and submit is already a dozen.
- *
- * The ceiling that actually bites first is context, not this number — see the
- * prepareStep elision below, without which a long turn dies of a full context
- * window well before reaching the limit.
+ * A hard ceiling, not the normal way a turn ends. A healthy turn now stops when
+ * the model calls task_complete (see stopWhen below); this is the runaway
+ * guard. It can be this high because compactHistory keeps a long run inside the
+ * context window and reflection steers the model off dead ends — neither of
+ * which existed when this was 40, the point at which long collection tasks used
+ * to get cut off mid-work.
  */
-export const MAX_STEPS = 40;
+export const MAX_STEPS = 100;
 
 export function buildMessages(history: ModelMessage[], userMessage: string): ModelMessage[] {
   return [...history, { role: 'user', content: userMessage }];
@@ -65,6 +93,12 @@ export interface AgentStreamOptions {
   maxSteps?: number;
   /** Abort the turn mid-flight (the composer's stop button). */
   abortSignal?: AbortSignal;
+  /**
+   * Called before every step; a non-null return is appended to the system
+   * prompt for that step. Production feeds the task-ledger digest through
+   * here so durable state reaches the model even after history trimming.
+   */
+  extraInstructions?: () => string | null;
 }
 
 /**
@@ -86,7 +120,7 @@ function tolerate<T>(promise: PromiseLike<T>, fallback: T): Promise<T> {
 export async function* streamAgentEvents(
   model: LanguageModel,
   messages: ModelMessage[],
-  { toolset = tools, maxSteps = MAX_STEPS, abortSignal }: AgentStreamOptions = {},
+  { toolset = tools, maxSteps = MAX_STEPS, abortSignal, extraInstructions }: AgentStreamOptions = {},
 ): AsyncGenerator<AgentEvent> {
   const stopped = () => abortSignal?.aborted === true;
   try {
@@ -98,7 +132,9 @@ export async function* streamAgentEvents(
       instructions: SYSTEM_PROMPT,
       messages,
       tools: toolset,
-      stopWhen: stepCountIs(maxSteps),
+      // Two ways to stop: the model declares the goal met, or the runaway guard
+      // trips. task_complete is the intended path; the step count is the fuse.
+      stopWhen: [stepCountIs(maxSteps), hasToolCall(TASK_COMPLETE_TOOL)],
       abortSignal,
       // Every step resends the whole turn so far. Snapshots are the one result
       // big enough to matter (up to ~12K tokens each) and the one that stops
@@ -106,9 +142,32 @@ export async function* streamAgentEvents(
       // long turn otherwise carries several stale copies of the same page and
       // exhausts the context window long before the step limit. The override
       // carries forward, so each step elides only what the last one added.
-      prepareStep: ({ messages: stepMessages }) => ({
-        messages: elideStaleSnapshots(stepMessages),
-      }),
+      //
+      // Everything that keeps a long turn alive converges here, rebuilt each
+      // step. Messages get snapshot elision then context compaction; the
+      // instructions get the ledger digest and any reflection note. Both the
+      // digest and the reflection ride in the instructions rather than as
+      // messages: instructions are rebuilt every step (always current, never
+      // duplicated in history) and can't break the strict user/assistant/tool
+      // alternation providers enforce.
+      prepareStep: ({ messages: stepMessages, stepNumber, responseMessages }) => {
+        const trimmed = compactHistory(elideStaleSnapshots(stepMessages));
+
+        const parts = [SYSTEM_PROMPT];
+        const digest = extraInstructions?.();
+        if (digest) parts.push(digest);
+        // Stall detection reads responseMessages, which compaction never
+        // touches, so the real action sequence stays visible to it.
+        const reflection = reflectionNote(stepNumber, responseMessages);
+        if (reflection) parts.push(reflection);
+
+        return {
+          messages: trimmed,
+          // Always set: the override carries forward, so a step with nothing
+          // extra must explicitly fall back to the bare system prompt.
+          instructions: parts.join('\n\n'),
+        };
+      },
     });
 
     for await (const part of result.fullStream) {
@@ -227,5 +286,11 @@ export async function* runAgentTurn(
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
     return;
   }
-  yield* streamAgentEvents(model, buildMessages(history, userMessage), { abortSignal });
+  yield* streamAgentEvents(model, buildMessages(history, userMessage), {
+    abortSignal,
+    extraInstructions: () => {
+      const ledger = getActiveLedger();
+      return ledger ? formatLedgerDigest(ledger) : null;
+    },
+  });
 }

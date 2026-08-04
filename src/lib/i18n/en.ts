@@ -113,6 +113,18 @@ export const en = {
   'settings.close': 'Close settings',
   'settings.permissionDenied': "Permission for {origin} was not granted — can't use this endpoint.",
 
+  // Task ledger
+  'ledger.title': 'Task ledger',
+  'ledger.planProgress': '{done}/{total} steps',
+  'ledger.findingsCount': '{count} findings',
+  'ledger.plan': 'Plan',
+  'ledger.findings': 'Findings',
+  'ledger.notes': 'Handoff notes',
+  'ledger.copy': 'Copy findings as Markdown',
+  'ledger.copied': 'Copied',
+  'ledger.expand': 'Show task ledger',
+  'ledger.collapse': 'Hide task ledger',
+
   // Context menus (also used from the background service worker)
   'menu.askPage': 'Ask AI about this page',
   'menu.askSelection': 'Ask AI about selection',

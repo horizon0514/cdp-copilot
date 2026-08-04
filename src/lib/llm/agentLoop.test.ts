@@ -156,6 +156,89 @@ describe('streamAgentEvents — keeping a long turn inside the context window', 
   });
 });
 
+describe('streamAgentEvents — goal-driven stop', () => {
+  const task_complete = tool({
+    description: 'ends the task',
+    inputSchema: z.object({ summary: z.string() }),
+    execute: async ({ summary }: { summary: string }) => ({ completed: true, summary }),
+  });
+
+  it('stops as soon as the model calls task_complete, well under the step limit', async () => {
+    const { events, stop } = await collect(
+      [
+        { do: 'tool', name: 'okTool' },
+        { do: 'tool', name: 'task_complete', input: { summary: 'done — 10 found' } },
+        { do: 'text', text: 'should never run' },
+      ],
+      50,
+      { toolset: { okTool, task_complete } },
+    );
+
+    expect(stop?.hitStepLimit).toBe(false);
+    expect(stop?.steps).toBe(2);
+    // The turn ended at task_complete — the third scripted step never ran.
+    expect(events.some((e) => e.type === 'text-delta')).toBe(false);
+    const done = events.find((e) => e.type === 'done');
+    expect(JSON.stringify(done)).toContain('task_complete');
+  });
+});
+
+describe('streamAgentEvents — extra instructions (task-ledger digest)', () => {
+  it('appends the digest to the system prompt on every step, staying current', async () => {
+    const prompts: string[] = [];
+    let findings = 0;
+    const savingTool = tool({
+      description: 'saves a finding',
+      inputSchema: z.object({}),
+      execute: async () => ({ saved: ++findings }),
+    });
+
+    const model = scriptedModel(
+      [
+        { do: 'tool', name: 'savingTool' },
+        { do: 'tool', name: 'savingTool' },
+        { do: 'text', text: 'done' },
+      ],
+      (prompt) => prompts.push(JSON.stringify(prompt)),
+    );
+
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'go' }], {
+      toolset: { savingTool },
+      maxSteps: 5,
+      extraInstructions: () => `Findings so far: ${findings}`,
+    })) {
+      void _;
+    }
+
+    expect(prompts).toHaveLength(3);
+    // Re-evaluated before each step, so mid-turn tool writes show up next step.
+    expect(prompts[0]).toContain('Findings so far: 0');
+    expect(prompts[1]).toContain('Findings so far: 1');
+    expect(prompts[2]).toContain('Findings so far: 2');
+    // The base system prompt is still there alongside the digest.
+    expect(prompts[2]).toContain('You are Pagehand');
+  });
+
+  it('sends the bare system prompt when there is nothing extra', async () => {
+    const prompts: string[] = [];
+    const model = scriptedModel(
+      [{ do: 'text', text: 'hi' }],
+      (prompt) => prompts.push(JSON.stringify(prompt)),
+    );
+
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'go' }], {
+      toolset,
+      maxSteps: 2,
+      extraInstructions: () => null,
+    })) {
+      void _;
+    }
+
+    expect(prompts[0]).toContain('You are Pagehand');
+    expect(prompts[0]).not.toContain('Findings so far');
+  });
+});
+
 describe('streamAgentEvents — stopping a running turn', () => {
   it('ends the turn as aborted, not as an error, when the signal fires mid-run', async () => {
     const controller = new AbortController();
