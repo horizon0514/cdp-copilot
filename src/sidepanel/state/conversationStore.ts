@@ -9,9 +9,9 @@ import {
   upsertActiveThread,
   type StoredThread,
 } from '../../lib/storage/chatThreads';
-import type { DisplayMessage, DisplayToolCall } from './types';
+import type { DisplayMessage, DisplayPart, DisplayToolCall } from './types';
 
-export type { DisplayMessage, DisplayToolCall } from './types';
+export type { DisplayMessage, DisplayPart, DisplayToolCall } from './types';
 
 export interface ThreadSummary {
   id: string;
@@ -161,20 +161,37 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   addUserMessage: (text) =>
     set((state) => ({
-      messages: [...state.messages, { id: crypto.randomUUID(), role: 'user', text, toolCalls: [] }],
+      messages: [
+        ...state.messages,
+        { id: crypto.randomUUID(), role: 'user', text, toolCalls: [], parts: [] },
+      ],
     })),
 
   startAssistantMessage: () => {
     const id = crypto.randomUUID();
     set((state) => ({
-      messages: [...state.messages, { id, role: 'assistant', text: '', toolCalls: [] }],
+      messages: [
+        ...state.messages,
+        { id, role: 'assistant', text: '', toolCalls: [], parts: [] },
+      ],
     }));
     return id;
   },
 
   appendAssistantText: (id, delta) =>
     set((state) => ({
-      messages: updateMessage(state.messages, id, (m) => ({ ...m, text: m.text + delta })),
+      messages: updateMessage(state.messages, id, (m) => {
+        const parts: DisplayPart[] = [...(m.parts ?? [])];
+        const last = parts[parts.length - 1];
+        // Append into the open text run so deltas between tools don't glue
+        // onto an earlier paragraph after a tool break.
+        if (last?.type === 'text') {
+          parts[parts.length - 1] = { type: 'text', text: last.text + delta };
+        } else {
+          parts.push({ type: 'text', text: delta });
+        }
+        return { ...m, text: m.text + delta, parts };
+      }),
     })),
 
   addToolCall: (id, call) =>
@@ -182,6 +199,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       messages: updateMessage(state.messages, id, (m) => ({
         ...m,
         toolCalls: [...m.toolCalls, { ...call, status: 'running' }],
+        parts: [...(m.parts ?? []), { type: 'tool', id: call.id }],
       })),
     })),
 

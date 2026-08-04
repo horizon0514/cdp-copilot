@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import { stabilizeStreamingMarkdown } from '../lib/stabilizeStreamingMarkdown';
 import { imagesFromToolCalls } from '../../lib/images/toolImages';
+import { buildMessageSegments } from '../lib/messageSegments';
 import { DisplayMessage } from '../state/conversationStore';
 import { useI18n, useT } from '../i18n/useT';
 import ChatImages from './ChatImages';
@@ -92,11 +93,15 @@ export default function MessageBubble({
   const t = useT();
   const hasText = message.text.trim().length > 0;
   const isUser = message.role === 'user';
-  const chatImages = isUser ? [] : imagesFromToolCalls(message.toolCalls);
+  const segments = isUser ? [] : buildMessageSegments(message);
   const showThinking =
-    isStreaming && !isUser && !hasText && message.toolCalls.length === 0 && chatImages.length === 0;
+    isStreaming && !isUser && segments.length === 0;
   const showContinue = Boolean(onContinue) && !isStreaming && message.stop?.hitStepLimit === true;
   const showRetry = Boolean(onRetry) && !isStreaming && Boolean(message.error);
+  const lastTextIndex = segments.reduce(
+    (last, segment, index) => (segment.kind === 'text' ? index : last),
+    -1,
+  );
 
   if (isUser) {
     return (
@@ -115,12 +120,27 @@ export default function MessageBubble({
     >
       {showThinking && <ThinkingRow />}
 
-      {message.toolCalls.length > 0 && <ToolCallList calls={message.toolCalls} />}
+      {/* Text and tools stay in arrival order; only consecutive tools share a list. */}
+      {segments.map((segment, index) => {
+        if (segment.kind === 'text') {
+          return (
+            <AssistantText
+              key={`text-${index}`}
+              text={segment.text}
+              streaming={Boolean(isStreaming) && index === lastTextIndex}
+            />
+          );
+        }
 
-      {/* Screenshots live in the transcript so they stay visible after tools collapse. */}
-      <ChatImages images={chatImages} label={t('message.screenshot')} />
-
-      {hasText && <AssistantText text={message.text} streaming={Boolean(isStreaming)} />}
+        const images = imagesFromToolCalls(segment.calls);
+        return (
+          <div key={`tools-${segment.calls[0]?.id ?? index}`} className="flex flex-col gap-1.5">
+            <ToolCallList calls={segment.calls} />
+            {/* Screenshots stay in the transcript so they survive tool collapse. */}
+            <ChatImages images={images} label={t('message.screenshot')} />
+          </div>
+        );
+      })}
 
       {message.error && (
         <div

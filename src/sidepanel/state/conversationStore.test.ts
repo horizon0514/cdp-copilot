@@ -9,6 +9,27 @@ beforeEach(async () => {
   useConversationStore.getState().reset();
 });
 
+describe('assistant parts timeline', () => {
+  it('records text and tools in arrival order, splitting text around tools', () => {
+    const id = store().startAssistantMessage();
+    store().appendAssistantText(id, 'before ');
+    store().addToolCall(id, { id: 't1', name: 'click', args: {} });
+    store().addToolCall(id, { id: 't2', name: 'type', args: {} });
+    store().appendAssistantText(id, 'after');
+    store().addToolCall(id, { id: 't3', name: 'snap', args: {} });
+
+    const message = store().messages.find((m) => m.id === id);
+    expect(message?.text).toBe('before after');
+    expect(message?.parts).toEqual([
+      { type: 'text', text: 'before ' },
+      { type: 'tool', id: 't1' },
+      { type: 'tool', id: 't2' },
+      { type: 'text', text: 'after' },
+      { type: 'tool', id: 't3' },
+    ]);
+  });
+});
+
 describe('newChat', () => {
   it('reuses the thread it is already on when nothing has been said', async () => {
     await store().hydrate();
