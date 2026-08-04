@@ -55,6 +55,17 @@ npm run pack     # production build + zip → pagehand.zip
 Upload `pagehand.zip` at [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 Privacy policy: hosted on the marketing site under `/privacy`.
 
+## Releasing
+
+GitHub Actions owns the cut:
+
+1. Open [Actions → Release](https://github.com/horizon0514/pagehand/actions/workflows/release.yml)
+2. **Run workflow** on `main`, pick `patch` / `minor` / `major`
+3. CI bumps `package.json`, commits, tags `vX.Y.Z`, packs `pagehand.zip`, and publishes the GitHub Release
+
+The marketing site download buttons always resolve to the latest Release (`/releases/latest/…`), and [`website/release.js`](website/release.js) fills in the current tag label. No website edit per release.
+
+Pushing an annotated `v*` tag yourself still triggers the same pack + release path.
 ## Security notes
 
 - Your API key is stored **unencrypted** in `chrome.storage.local`, scoped to

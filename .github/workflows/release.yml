@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (from package.json on main)
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 permissions:
   contents: write
@@ -13,11 +23,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
+      - name: Bump version on main
+        if: github.event_name == 'workflow_dispatch'
+        id: bump
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git checkout main
+          git pull --ff-only origin main
+
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Working tree on main is not clean; refusing to release."
+            exit 1
+          fi
+
+          npm version "${{ inputs.bump }}" --no-git-tag-version
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
+            echo "Tag ${TAG} already exists on origin."
+            exit 1
+          fi
+
+          git add package.json package-lock.json
+          git commit -m "Release ${TAG}"
+          # Push the version commit before packing so the release tag lands on main.
+          git push origin main
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
       - run: npm run typecheck
@@ -28,6 +76,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.bump.outputs.tag || github.ref_name }}
+          name: ${{ steps.bump.outputs.tag || github.ref_name }}
+          target_commitish: ${{ steps.bump.outputs.sha || github.sha }}
           files: pagehand.zip
           generate_release_notes: true
           fail_on_unmatched_files: true

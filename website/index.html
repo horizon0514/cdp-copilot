@@ -99,9 +99,10 @@
             <a
               class="btn btn-primary"
               id="install-cta"
-              href="https://github.com/horizon0514/pagehand/releases/download/v0.2.0/pagehand.zip"
+              data-release="download"
+              href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip"
             >
-              Download v0.2.0
+              Download
             </a>
             <a class="btn btn-ghost" href="#install">
               How to install
@@ -126,8 +127,19 @@
               <h3>Download</h3>
               <p>
                 Get
-                <a href="https://github.com/horizon0514/pagehand/releases/download/v0.2.0/pagehand.zip">pagehand.zip</a>
-                from the <a href="https://github.com/horizon0514/pagehand/releases/tag/v0.2.0">v0.2.0</a> GitHub Release.
+                <a
+                  data-release="download"
+                  href="https://github.com/horizon0514/pagehand/releases/latest/download/pagehand.zip"
+                  >pagehand.zip</a
+                >
+                from the
+                <a
+                  data-release="page"
+                  data-release-label
+                  href="https://github.com/horizon0514/pagehand/releases/latest"
+                  >latest</a
+                >
+                GitHub Release.
               </p>
             </li>
             <li>
@@ -261,6 +273,7 @@
       </div>
     </footer>
 
+    <script src="/release.js"></script>
     <script>
       document.getElementById("y").textContent = String(new Date().getFullYear());
     </script>
