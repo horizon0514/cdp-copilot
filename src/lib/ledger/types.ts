@@ -16,6 +16,10 @@ export interface Finding {
   key: string;
   /** One-line human-readable summary. */
   summary: string;
+  /** Direct quote or observed value that proves this result meets the goal. */
+  evidence?: string;
+  /** Why that evidence satisfies the task's acceptance criteria. */
+  rationale?: string;
   /** Optional structured payload worth keeping verbatim. */
   data?: Record<string, unknown>;
   createdAt: number;
@@ -39,6 +43,8 @@ export const MAX_NOTES = 10;
 export const MAX_GOAL_CHARS = 500;
 export const MAX_PLAN_TEXT_CHARS = 200;
 export const MAX_FINDING_SUMMARY_CHARS = 300;
+export const MAX_FINDING_EVIDENCE_CHARS = 500;
+export const MAX_FINDING_RATIONALE_CHARS = 300;
 export const MAX_FINDING_DATA_CHARS = 2_000;
 export const MAX_NOTE_CHARS = 500;
 

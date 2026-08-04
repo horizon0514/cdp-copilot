@@ -14,14 +14,17 @@ function planLine(item: PlanItem, index: number): string {
   return `${index + 1}. [${item.status}] ${clampLine(item.text)}`;
 }
 
-function findingLine(finding: Finding): string {
-  return `- ${clampLine(finding.key)}: ${clampLine(finding.summary)}`;
+function findingLines(finding: Finding): string[] {
+  const lines = [`- ${clampLine(finding.key)}: ${clampLine(finding.summary)}`];
+  if (finding.evidence) lines.push(`  Evidence: ${clampLine(finding.evidence)}`);
+  if (finding.rationale) lines.push(`  Qualification: ${clampLine(finding.rationale)}`);
+  return lines;
 }
 
 /**
  * The compact, model-facing view of the ledger, re-injected into the
  * instructions on every step. This is what makes findings durable: the
- * conversation can lose the step where save_finding happened and the model
+ * conversation can lose the step where a finding was recorded and the model
  * still sees the result here.
  */
 export function formatLedgerDigest(ledger: TaskLedger): string | null {
@@ -49,7 +52,7 @@ export function formatLedgerDigest(ledger: TaskLedger): string | null {
         ? `Findings (${ledger.findings.length} saved; newest ${shown.length} shown, ${hidden} older omitted):`
         : `Findings (${ledger.findings.length} saved):`,
     );
-    lines.push(...shown.map(findingLine));
+    lines.push(...shown.flatMap(findingLines));
   }
 
   if (ledger.notes.length > 0) {
@@ -59,7 +62,7 @@ export function formatLedgerDigest(ledger: TaskLedger): string | null {
 
   lines.push(
     'Treat this ledger — not the conversation — as the source of truth for progress. ' +
-      'Keep it current with update_plan / save_finding / add_note.',
+      'Keep it current with update_task_ledger.',
   );
 
   return lines.join('\n');

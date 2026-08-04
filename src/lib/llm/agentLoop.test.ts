@@ -44,6 +44,30 @@ async function collect(
 }
 
 describe('streamAgentEvents — ReAct loop', () => {
+  it('can hide orchestration controls from a simple-task step', async () => {
+    const advertised: unknown[] = [];
+    const control_task = tool({
+      description: 'orchestration control',
+      inputSchema: z.object({ type: z.literal('complete') }),
+      execute: async () => ({ accepted: true }),
+    });
+    const model = scriptedModel(
+      [{ do: 'text', text: 'simple answer' }],
+      undefined,
+      (modelTools) => advertised.push(modelTools),
+    );
+
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'say hello' }], {
+      toolset: { okTool, control_task },
+      activeTools: () => ['okTool'],
+    })) {
+      void _;
+    }
+
+    expect(JSON.stringify(advertised[0])).toContain('okTool');
+    expect(JSON.stringify(advertised[0])).not.toContain('control_task');
+  });
+
   it('runs multiple steps: tool call, then a final answer', async () => {
     const { events, text, stop } = await collect([
       { do: 'tool', name: 'okTool' },
@@ -157,33 +181,58 @@ describe('streamAgentEvents — keeping a long turn inside the context window', 
 });
 
 describe('streamAgentEvents — goal-driven stop', () => {
-  const task_complete = tool({
-    description: 'ends the task',
-    inputSchema: z.object({ summary: z.string() }),
-    execute: async ({ summary }: { summary: string }) => ({ completed: true, summary }),
+  const control_task = tool({
+    description: 'controls the task',
+    inputSchema: z.object({ type: z.literal('complete'), summary: z.string() }),
+    execute: async ({ type, summary }: { type: 'complete'; summary: string }) => ({
+      accepted: true,
+      type,
+      summary,
+    }),
   });
 
-  it('stops as soon as the model calls task_complete, well under the step limit', async () => {
+  it('stops as soon as the model yields a control action, well under the step limit', async () => {
     const { events, stop } = await collect(
       [
         { do: 'tool', name: 'okTool' },
-        { do: 'tool', name: 'task_complete', input: { summary: 'done — 10 found' } },
+        { do: 'tool', name: 'control_task', input: { type: 'complete', summary: 'done — 10 found' } },
         { do: 'text', text: 'should never run' },
       ],
       50,
-      { toolset: { okTool, task_complete } },
+      { toolset: { okTool, control_task } },
     );
 
     expect(stop?.hitStepLimit).toBe(false);
     expect(stop?.steps).toBe(2);
-    // The turn ended at task_complete — the third scripted step never ran.
+    // The turn ended at control_task — the third scripted step never ran.
     expect(events.some((e) => e.type === 'text-delta')).toBe(false);
     const done = events.find((e) => e.type === 'done');
-    expect(JSON.stringify(done)).toContain('task_complete');
+    expect(JSON.stringify(done)).toContain('control_task');
   });
 });
 
 describe('streamAgentEvents — extra instructions (task-ledger digest)', () => {
+  it('requires evidence-based qualification and a final audit for collection tasks', async () => {
+    const prompts: string[] = [];
+    const model = scriptedModel(
+      [{ do: 'text', text: 'done' }],
+      (prompt) => prompts.push(JSON.stringify(prompt)),
+    );
+
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'collect five sellers' }], {
+      toolset,
+      maxSteps: 2,
+    })) {
+      void _;
+    }
+
+    expect(prompts[0]).toContain('explicit acceptance and rejection');
+    expect(prompts[0]).toContain('having sold something in the past does not show a current desire');
+    expect(prompts[0]).toContain('audit every saved finding');
+    expect(prompts[0]).toContain('update_task_ledger');
+    expect(prompts[0]).toContain('Never lower the criteria or pad');
+  });
+
   it('appends the digest to the system prompt on every step, staying current', async () => {
     const prompts: string[] = [];
     let findings = 0;

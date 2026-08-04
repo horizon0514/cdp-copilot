@@ -24,7 +24,7 @@ describe('isStalling', () => {
       call('extract_content', { instruction: 'read comments' }),
       call('evaluate_script', { function: 'scroll' }),
       call('extract_content', { instruction: 'read more comments' }),
-      call('save_finding', { key: 'u1' }),
+      call('update_task_ledger', { mutations: [{ type: 'upsert_finding', key: 'u1' }] }),
     ];
     expect(isStalling(history)).toBe(false);
   });

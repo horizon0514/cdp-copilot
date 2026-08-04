@@ -8,7 +8,7 @@ import {
   type AssistantModelMessage,
   type ToolModelMessage,
 } from 'ai';
-import { tools, TASK_COMPLETE_TOOL } from '../tools';
+import { tools, CONTROL_TASK_TOOL } from '../tools';
 import { resolveModel } from './providers';
 import { Settings } from '../storage/schema';
 import { dropDanglingToolCalls, elideStaleSnapshots, sanitizeModelMessages } from './sanitizeMessages';
@@ -16,6 +16,8 @@ import { compactHistory } from './compactHistory';
 import { reflectionNote } from './reflection';
 import { getActiveLedger } from '../ledger/activeLedger';
 import { formatLedgerDigest } from '../ledger/digest';
+import { isLedgerEmpty } from '../ledger/types';
+import { orchestrateAgentEvents, type AgentMode } from './orchestrator';
 
 /** Assistant + tool messages produced by a single streamText call. */
 export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
@@ -58,25 +60,44 @@ wait_for or a short pause for content to load, then extract_content again — ea
 newly rendered at once. Reserve take_snapshot for when you need uids to interact with elements.
 
 For multi-step tasks you have a durable task ledger that survives even when older messages are trimmed
-from this conversation. Start such tasks by calling update_plan with the goal (including the success
-criterion) and a short step plan, and keep statuses current as you go. The moment you discover something
-the task asked for, call save_finding — results that exist only in prose are lost when the conversation
-is trimmed. Before detours and at the end of each work chunk, call add_note with where you left off.
+from this conversation. Start such tasks by calling update_task_ledger to set the goal (including the
+success criterion) and a short step plan, and keep statuses current as you go. The moment you discover
+something the task asked for, upsert it as a finding — results that exist only in prose are lost when the
+conversation is trimmed. Before detours and at the end of each work chunk, add a note with where you left off.
 The current ledger state appears in these instructions each step; treat it — not the conversation — as
 the source of truth for progress, and never re-collect a finding already saved. Trivial single-step
 requests don't need the ledger.
 
-When the goal is met — measured against the success criterion in your ledger — call task_complete to end
-the task; don't keep going to fill steps. If you get stuck, do not repeat the same action hoping for a
-different result: change approach, and if a whole strategy is exhausted, say what's blocking you and stop.
+For collection or list-building tasks, turn the user's request into explicit acceptance and rejection
+criteria in the ledger goal before collecting. Judge each result only by direct evidence from the page:
+do not infer an unstated intention from related behavior, ownership, concern, or topic relevance, and
+preserve tense and status (for example, having sold something in the past does not show a current desire
+to sell). Ambiguous items are leads to investigate, not findings to save. Never lower the criteria or pad
+the list just to reach a target count. When the target is reached, audit every saved finding against the
+original request, its verbatim evidence, and its qualification rationale; remove any weak or invalid item
+through update_task_ledger, then keep searching until the target count is met by verified results.
+
+For simple requests, answer directly and stop normally. For a ledger-backed task, when the whole goal is
+met — measured against its success criterion — call control_task with type complete. If it is too large
+for one context, call control_task with type start_episode and one bounded objective, but only after you
+have initialized the ledger. If you get stuck, do not repeat the same action hoping for a different result:
+change approach, and if a whole strategy is exhausted, say what's blocking you and stop.
 To search the web, use the web_search tool rather than navigating to a search engine and reading the page:
 it returns clean ranked results. Pass concise keywords, not the raw question, and if results are poor,
 reformulate with different terms rather than retrying the same query. Then navigate_page to a promising
 result and extract_content to read it.`;
 
+const EPISODE_PROMPT = `${SYSTEM_PROMPT}
+
+## Fresh-context episode
+Execute only the bounded objective in the user message. The task ledger is your only cross-episode memory:
+update it with verified progress and read its current digest before choosing actions. Do not start another
+episode and do not declare the whole task complete. End this episode by calling control_task with type
+finish_episode, status done / partial / blocked, a concise summary, and a handoff note for the root planner.`;
+
 /**
  * A hard ceiling, not the normal way a turn ends. A healthy turn now stops when
- * the model calls task_complete (see stopWhen below); this is the runaway
+ * the model yields a control_task action (see stopWhen below); this is the runaway
  * guard. It can be this high because compactHistory keeps a long run inside the
  * context window and reflection steers the model off dead ends — neither of
  * which existed when this was 40, the point at which long collection tasks used
@@ -91,6 +112,10 @@ export function buildMessages(history: ModelMessage[], userMessage: string): Mod
 export interface AgentStreamOptions {
   toolset?: ToolSet;
   maxSteps?: number;
+  /** Base system instructions; episode runs override the normal root prompt. */
+  instructions?: string;
+  /** Recomputed tool-name allowlist for each step. */
+  activeTools?: () => string[];
   /** Abort the turn mid-flight (the composer's stop button). */
   abortSignal?: AbortSignal;
   /**
@@ -120,7 +145,14 @@ function tolerate<T>(promise: PromiseLike<T>, fallback: T): Promise<T> {
 export async function* streamAgentEvents(
   model: LanguageModel,
   messages: ModelMessage[],
-  { toolset = tools, maxSteps = MAX_STEPS, abortSignal, extraInstructions }: AgentStreamOptions = {},
+  {
+    toolset = tools,
+    maxSteps = MAX_STEPS,
+    instructions = SYSTEM_PROMPT,
+    activeTools,
+    abortSignal,
+    extraInstructions,
+  }: AgentStreamOptions = {},
 ): AsyncGenerator<AgentEvent> {
   const stopped = () => abortSignal?.aborted === true;
   try {
@@ -129,12 +161,12 @@ export async function* streamAgentEvents(
       // AI SDK v7 rejects `role: 'system'` entries inside `messages`
       // (allowSystemInMessages defaults to false) — the system prompt has to
       // come through this top-level option instead.
-      instructions: SYSTEM_PROMPT,
+      instructions,
       messages,
       tools: toolset,
-      // Two ways to stop: the model declares the goal met, or the runaway guard
-      // trips. task_complete is the intended path; the step count is the fuse.
-      stopWhen: [stepCountIs(maxSteps), hasToolCall(TASK_COMPLETE_TOOL)],
+      // Two ways to stop: the model yields an explicit control action, or the
+      // runaway guard trips. The control action is the intended path.
+      stopWhen: [stepCountIs(maxSteps), hasToolCall(CONTROL_TASK_TOOL)],
       abortSignal,
       // Every step resends the whole turn so far. Snapshots are the one result
       // big enough to matter (up to ~12K tokens each) and the one that stops
@@ -153,7 +185,7 @@ export async function* streamAgentEvents(
       prepareStep: ({ messages: stepMessages, stepNumber, responseMessages }) => {
         const trimmed = compactHistory(elideStaleSnapshots(stepMessages));
 
-        const parts = [SYSTEM_PROMPT];
+        const parts = [instructions];
         const digest = extraInstructions?.();
         if (digest) parts.push(digest);
         // Stall detection reads responseMessages, which compaction never
@@ -166,6 +198,7 @@ export async function* streamAgentEvents(
           // Always set: the override carries forward, so a step with nothing
           // extra must explicitly fall back to the bare system prompt.
           instructions: parts.join('\n\n'),
+          ...(activeTools ? { activeTools: activeTools() } : {}),
         };
       },
     });
@@ -286,11 +319,25 @@ export async function* runAgentTurn(
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
     return;
   }
-  yield* streamAgentEvents(model, buildMessages(history, userMessage), {
-    abortSignal,
-    extraInstructions: () => {
-      const ledger = getActiveLedger();
-      return ledger ? formatLedgerDigest(ledger) : null;
-    },
-  });
+  const run = (messages: ModelMessage[], mode: AgentMode) =>
+    streamAgentEvents(model, messages, {
+      abortSignal,
+      instructions: mode === 'episode' ? EPISODE_PROMPT : SYSTEM_PROMPT,
+      activeTools:
+        mode === 'root'
+          ? () => {
+              const ledger = getActiveLedger();
+              const names = Object.keys(tools);
+              return ledger && !isLedgerEmpty(ledger)
+                ? names
+                : names.filter((name) => name !== CONTROL_TASK_TOOL);
+            }
+          : undefined,
+      extraInstructions: () => {
+        const ledger = getActiveLedger();
+        return ledger ? formatLedgerDigest(ledger) : null;
+      },
+    });
+
+  yield* orchestrateAgentEvents(buildMessages(history, userMessage), run);
 }

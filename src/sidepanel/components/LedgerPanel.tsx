@@ -31,9 +31,9 @@ export function findingsMarkdown(findings: Finding[]): string {
 }
 
 /**
- * Renders the durable task ledger the agent maintains via update_plan /
- * save_finding / add_note — the user-facing answer to "what has it actually
- * got so far", independent of what the transcript says.
+ * Renders the durable task ledger the agent maintains via update_task_ledger —
+ * the user-facing answer to "what has it actually got so far", independent of
+ * what the transcript says.
  */
 export default function LedgerPanel({ ledger }: { ledger: TaskLedger | null }) {
   const t = useT();

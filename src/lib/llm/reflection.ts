@@ -17,13 +17,14 @@ const STALL_REPEATS = 3;
 
 const CHECKPOINT =
   'Checkpoint — reflect before continuing: look at your task ledger and judge whether the last several ' +
-  'steps actually advanced the goal. If not, change strategy rather than repeating variations of the same ' +
-  'action, and record any dead end with add_note so you don’t retry it.';
+  'steps actually advanced the goal and whether saved findings still meet the original acceptance criteria ' +
+  'with direct evidence rather than inference. Remove weak findings. If progress has stalled, change strategy ' +
+  'rather than repeating variations of the same action, and record any dead end through update_task_ledger.';
 
 const STALL =
   'You appear to be repeating the same action without new progress. Stop and rethink: the current approach ' +
   'is not working. Try a materially different tactic — a different search query or source, a different tool, ' +
-  'or re-reading what you already have — and use add_note to record the dead end so you don’t loop back to it.';
+  'or re-reading what you already have — and record the dead end in the task ledger so you don’t loop back to it.';
 
 interface ToolCallSig {
   name: string;

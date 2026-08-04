@@ -29,11 +29,16 @@ export type StepScript =
  * A model that replays a fixed script, one entry per step. The last entry
  * repeats if the loop runs more steps than the script has entries.
  */
-export function scriptedModel(script: StepScript[], onPrompt?: (prompt: unknown) => void) {
+export function scriptedModel(
+  script: StepScript[],
+  onPrompt?: (prompt: unknown) => void,
+  onTools?: (tools: unknown) => void,
+) {
   let step = 0;
   return new MockLanguageModelV4({
-    doStream: async ({ prompt }) => {
+    doStream: async ({ prompt, tools }) => {
       onPrompt?.(prompt);
+      onTools?.(tools);
       const action = script[Math.min(step, script.length - 1)];
       step += 1;
       const id = `s${step}`;

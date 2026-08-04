@@ -16,18 +16,23 @@ function ledger(panel: Page): Promise<StoredLedger | null> {
   return panel.evaluate(() => window.__cdp.ledger.get());
 }
 
-test('update_plan records the goal and plan and reports progress', async ({ panel }) => {
+test('update_task_ledger records the goal and plan and reports progress', async ({ panel }) => {
   await activate(panel, 'e2e-plan');
 
   const result = await callTool<{ planTotal: number; planDone: number; findingsSaved: number }>(
     panel,
-    'update_plan',
+    'update_task_ledger',
     {
-      goal: 'find 3 sellers',
-      plan: [
-        { text: 'search listings', status: 'done' },
-        { text: 'scan comments', status: 'in_progress' },
-        { text: 'compile table' },
+      mutations: [
+        { type: 'set_goal', goal: 'find 3 sellers' },
+        {
+          type: 'replace_plan',
+          plan: [
+            { text: 'search listings', status: 'done' },
+            { text: 'scan comments', status: 'in_progress' },
+            { text: 'compile table' },
+          ],
+        },
       ],
     },
   );
@@ -40,21 +45,35 @@ test('update_plan records the goal and plan and reports progress', async ({ pane
   expect(state?.plan[1]).toMatchObject({ text: 'scan comments', status: 'in_progress' });
 });
 
-test('save_finding dedupes by key and updates in place', async ({ panel }) => {
+test('update_task_ledger dedupes findings by key and updates in place', async ({ panel }) => {
   await activate(panel, 'e2e-findings');
 
-  const first = await callTool<{ isNew: boolean; findingsSaved: number }>(panel, 'save_finding', {
-    key: 'user-1',
-    summary: 'maybe selling',
-    data: { url: 'https://x/u/1' },
+  const first = await callTool<{ findingsSaved: number }>(panel, 'update_task_ledger', {
+    mutations: [{
+      type: 'upsert_finding',
+      finding: {
+        key: 'user-1',
+        summary: 'maybe selling',
+        evidence: '考虑挂牌',
+        rationale: 'Possible present intent.',
+        data: { url: 'https://x/u/1' },
+      },
+    }],
   });
-  expect(first).toMatchObject({ isNew: true, findingsSaved: 1 });
+  expect(first).toMatchObject({ findingsSaved: 1 });
 
-  const dup = await callTool<{ isNew: boolean; findingsSaved: number }>(panel, 'save_finding', {
-    key: 'user-1',
-    summary: 'definitely selling',
+  const dup = await callTool<{ findingsSaved: number }>(panel, 'update_task_ledger', {
+    mutations: [{
+      type: 'upsert_finding',
+      finding: {
+        key: 'user-1',
+        summary: 'definitely selling',
+        evidence: '房子正在挂牌',
+        rationale: 'Direct current listing.',
+      },
+    }],
   });
-  expect(dup).toMatchObject({ isNew: false, findingsSaved: 1 });
+  expect(dup).toMatchObject({ findingsSaved: 1 });
 
   const state = await ledger(panel);
   expect(state?.findings).toHaveLength(1);
@@ -63,8 +82,20 @@ test('save_finding dedupes by key and updates in place', async ({ panel }) => {
 
 test('findings survive a reload from IndexedDB', async ({ panel }) => {
   await activate(panel, 'e2e-persist');
-  await callTool(panel, 'save_finding', { key: 'acc-42', summary: 'wants to sell downtown flat' });
-  await callTool(panel, 'add_note', { text: 'stopped at comment 40 of note 3' });
+  await callTool(panel, 'update_task_ledger', {
+    mutations: [
+      {
+        type: 'upsert_finding',
+        finding: {
+          key: 'acc-42',
+          summary: 'wants to sell downtown flat',
+          evidence: '市中心的房子想卖',
+          rationale: 'Explicit current selling intent.',
+        },
+      },
+      { type: 'add_note', text: 'stopped at comment 40 of note 3' },
+    ],
+  });
 
   // Re-activating reloads the ledger from IndexedDB, discarding in-memory state.
   const reloaded = await activate(panel, 'e2e-persist');
@@ -74,16 +105,31 @@ test('findings survive a reload from IndexedDB', async ({ panel }) => {
 
 test('ledgers are isolated per thread', async ({ panel }) => {
   await activate(panel, 'e2e-thread-x');
-  await callTool(panel, 'save_finding', { key: 'x-only', summary: 'belongs to x' });
+  await callTool(panel, 'update_task_ledger', {
+    mutations: [{
+      type: 'upsert_finding',
+      finding: {
+        key: 'x-only',
+        summary: 'belongs to x',
+        evidence: 'thread x evidence',
+        rationale: 'Matches the test criterion.',
+      },
+    }],
+  });
 
   const other = await activate(panel, 'e2e-thread-y');
   expect(other.findings).toHaveLength(0);
   expect(other.goal).toBeNull();
 });
 
-test('task_complete acknowledges the summary that ends the turn', async ({ panel }) => {
-  const result = await callTool<{ completed: boolean; summary: string }>(panel, 'task_complete', {
+test('control_task acknowledges the action that ends the turn', async ({ panel }) => {
+  const result = await callTool<{ accepted: boolean; type: string; summary: string }>(panel, 'control_task', {
+    type: 'complete',
     summary: 'found all 3 sellers — see ledger',
   });
-  expect(result).toEqual({ completed: true, summary: 'found all 3 sellers — see ledger' });
+  expect(result).toEqual({
+    accepted: true,
+    type: 'complete',
+    summary: 'found all 3 sellers — see ledger',
+  });
 });

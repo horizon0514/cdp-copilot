@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { applyPlanUpdate, recordFinding, recordNote } from '../ledger/activeLedger';
+import { applyLedgerMutations } from '../ledger/activeLedger';
 import type { TaskLedger } from '../ledger/types';
 
 /**
@@ -19,69 +19,65 @@ function progress(ledger: TaskLedger) {
   };
 }
 
-export const update_plan = tool({
-  description:
-    'Records or revises the durable task plan. Use at the start of any multi-step task (set the goal ' +
-    'and a short step list), and again whenever a step finishes or the plan changes — pass the FULL ' +
-    'plan list each time, it replaces the previous one. The current plan is shown in your instructions ' +
-    'each step and survives conversation trimming.',
-  inputSchema: z.object({
-    goal: z
-      .string()
-      .optional()
-      .describe('The overall task goal, restated compactly (include the success criterion, e.g. a target count)'),
-    plan: z
-      .array(
-        z.object({
-          text: z.string().describe('One short step'),
-          status: z.enum(['pending', 'in_progress', 'done', 'skipped']).optional(),
-        }),
-      )
-      .optional()
-      .describe('The full plan list — replaces the previous plan entirely'),
+const planItem = z.object({
+  text: z.string().describe('One short step'),
+  status: z.enum(['pending', 'in_progress', 'done', 'skipped']).optional(),
+});
+
+const finding = z.object({
+  key: z.string().describe('Stable dedup key — an account id, URL, product id, etc.'),
+  summary: z.string().describe('One-line human-readable description of the qualifying result'),
+  evidence: z
+    .string()
+    .describe('Verbatim page quote or directly observed value that proves the result qualifies'),
+  rationale: z
+    .string()
+    .describe('How the evidence satisfies the acceptance criteria, including relevant tense or status'),
+  data: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe('Optional compact structured fields worth keeping verbatim'),
+});
+
+const mutation = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('set_goal'),
+    goal: z.string().describe('Overall goal including explicit success, acceptance, and rejection criteria'),
   }),
-  execute: async ({ goal, plan }) => {
-    const ledger = await applyPlanUpdate({ goal, plan });
+  z.object({
+    type: z.literal('replace_plan'),
+    plan: z.array(planItem).describe('The full replacement plan'),
+  }),
+  z.object({
+    type: z.literal('upsert_finding'),
+    finding,
+  }),
+  z.object({
+    type: z.literal('remove_finding'),
+    key: z.string().describe('Exact stable key of the invalid or outdated finding'),
+    reason: z.string().describe('Why it fails the goal’s acceptance criteria'),
+  }),
+  z.object({
+    type: z.literal('add_note'),
+    text: z.string().describe('One- or two-sentence handoff note'),
+  }),
+]);
+
+export const update_task_ledger = tool({
+  description:
+    'Atomically updates durable task state with one or more typed mutations. Use it to set the goal and ' +
+    'replace the plan, upsert or remove verified findings, and append handoff notes. The ledger appears in ' +
+    'your instructions every step and survives history trimming. For collection tasks, only upsert a finding ' +
+    'when direct evidence meets the goal’s criteria; remove any item that fails final review.',
+  inputSchema: z.object({
+    mutations: z
+      .array(mutation)
+      .min(1)
+      .max(50)
+      .describe('Task-state changes to apply together, in order'),
+  }),
+  execute: async ({ mutations }) => {
+    const ledger = await applyLedgerMutations(mutations);
     return { ok: true, ...progress(ledger) };
-  },
-});
-
-export const save_finding = tool({
-  description:
-    'Saves one result the task is looking for (an account, a product, a fact…) to durable storage. ' +
-    'Call it IMMEDIATELY each time you discover something the task asked for — never keep results only ' +
-    'in prose, they are lost when the conversation is trimmed. Saving an existing key updates that entry.',
-  inputSchema: z.object({
-    key: z
-      .string()
-      .describe('Stable dedup key for this result — an account id, username, URL, etc.'),
-    summary: z.string().describe('One-line human-readable summary of the result and the evidence for it'),
-    data: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .describe('Optional structured fields worth keeping verbatim (profile URL, quoted comment, …)'),
-  }),
-  execute: async ({ key, summary, data }) => {
-    const { ledger, isNew, dataDropped } = await recordFinding({ key, summary, data });
-    return {
-      saved: true,
-      isNew,
-      findingsSaved: ledger.findings.length,
-      ...(dataDropped ? { warning: 'data exceeded 2000 chars and was dropped — keep it compact' } : {}),
-    };
-  },
-});
-
-export const add_note = tool({
-  description:
-    'Leaves a short durable handoff note to your future self about where you left off — e.g. which page ' +
-    'or list position you reached, what to try next, or a dead end to avoid. Use before long detours and ' +
-    'whenever you finish a work chunk; the newest notes are shown in your instructions each step.',
-  inputSchema: z.object({
-    text: z.string().describe('The note, one or two sentences'),
-  }),
-  execute: async ({ text }) => {
-    await recordNote(text);
-    return { ok: true };
   },
 });

@@ -2,6 +2,8 @@ import { loadLedger, saveLedger } from './ledgerStore';
 import {
   makeEmptyLedger,
   MAX_FINDING_DATA_CHARS,
+  MAX_FINDING_EVIDENCE_CHARS,
+  MAX_FINDING_RATIONALE_CHARS,
   MAX_FINDING_SUMMARY_CHARS,
   MAX_FINDINGS,
   MAX_GOAL_CHARS,
@@ -70,75 +72,86 @@ function clamp(text: string, max: number): string {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
-export interface PlanUpdate {
-  goal?: string;
-  plan?: Array<{ text: string; status?: PlanItem['status'] }>;
-}
+export type LedgerMutation =
+  | { type: 'set_goal'; goal: string }
+  | { type: 'replace_plan'; plan: Array<{ text: string; status?: PlanItem['status'] }> }
+  | {
+      type: 'upsert_finding';
+      finding: {
+        key: string;
+        summary: string;
+        evidence?: string;
+        rationale?: string;
+        data?: Record<string, unknown>;
+      };
+    }
+  | { type: 'remove_finding'; key: string; reason: string }
+  | { type: 'add_note'; text: string };
 
-/** Replace goal and/or the whole plan list (full replacement — no id bookkeeping). */
-export async function applyPlanUpdate(update: PlanUpdate): Promise<TaskLedger> {
-  const ledger = requireActive();
-  return commit({
-    ...ledger,
-    goal: update.goal !== undefined ? clamp(update.goal, MAX_GOAL_CHARS) : ledger.goal,
-    plan:
-      update.plan !== undefined
-        ? update.plan.slice(0, MAX_PLAN_ITEMS).map((item) => ({
+/**
+ * Apply a heterogeneous batch atomically. The model gets one stable task-state
+ * interface while this module keeps the ledger's typed invariants private.
+ */
+export async function applyLedgerMutations(mutations: LedgerMutation[]): Promise<TaskLedger> {
+  let next = requireActive();
+
+  for (const mutation of mutations) {
+    switch (mutation.type) {
+      case 'set_goal':
+        next = { ...next, goal: clamp(mutation.goal, MAX_GOAL_CHARS) };
+        break;
+      case 'replace_plan':
+        next = {
+          ...next,
+          plan: mutation.plan.slice(0, MAX_PLAN_ITEMS).map((item) => ({
             text: clamp(item.text, MAX_PLAN_TEXT_CHARS),
             status: item.status ?? 'pending',
-          }))
-        : ledger.plan,
-  });
-}
-
-export interface RecordFindingResult {
-  ledger: TaskLedger;
-  /** False when the key already existed and the entry was updated in place. */
-  isNew: boolean;
-  /** True when `data` was too large to keep and was dropped. */
-  dataDropped: boolean;
-}
-
-/** Upsert a finding by key. Updated entries move to the end (= newest in the digest). */
-export async function recordFinding(input: {
-  key: string;
-  summary: string;
-  data?: Record<string, unknown>;
-}): Promise<RecordFindingResult> {
-  const ledger = requireActive();
-  const key = clamp(input.key, 200);
-  const existing = ledger.findings.find((f) => f.key === key);
-
-  if (!existing && ledger.findings.length >= MAX_FINDINGS) {
-    throw new Error(`Findings limit reached (${MAX_FINDINGS}) — the task result set is full.`);
+          })),
+        };
+        break;
+      case 'upsert_finding': {
+        const input = mutation.finding;
+        const key = clamp(input.key, 200);
+        const existing = next.findings.find((finding) => finding.key === key);
+        if (!existing && next.findings.length >= MAX_FINDINGS) {
+          throw new Error(`Findings limit reached (${MAX_FINDINGS}) — the task result set is full.`);
+        }
+        const data =
+          input.data !== undefined && JSON.stringify(input.data).length <= MAX_FINDING_DATA_CHARS
+            ? input.data
+            : undefined;
+        const finding: Finding = {
+          key,
+          summary: clamp(input.summary, MAX_FINDING_SUMMARY_CHARS),
+          ...(input.evidence !== undefined
+            ? { evidence: clamp(input.evidence, MAX_FINDING_EVIDENCE_CHARS) }
+            : {}),
+          ...(input.rationale !== undefined
+            ? { rationale: clamp(input.rationale, MAX_FINDING_RATIONALE_CHARS) }
+            : {}),
+          ...(data !== undefined ? { data } : {}),
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        next = {
+          ...next,
+          findings: [...next.findings.filter((item) => item.key !== key), finding],
+        };
+        break;
+      }
+      case 'remove_finding':
+        next = {
+          ...next,
+          findings: next.findings.filter((finding) => finding.key !== clamp(mutation.key, 200)),
+        };
+        break;
+      case 'add_note':
+        next = {
+          ...next,
+          notes: [...next.notes, clamp(mutation.text, MAX_NOTE_CHARS)].slice(-MAX_NOTES),
+        };
+        break;
+    }
   }
 
-  let data = input.data;
-  let dataDropped = false;
-  if (data !== undefined && JSON.stringify(data).length > MAX_FINDING_DATA_CHARS) {
-    data = undefined;
-    dataDropped = true;
-  }
-
-  const finding: Finding = {
-    key,
-    summary: clamp(input.summary, MAX_FINDING_SUMMARY_CHARS),
-    ...(data !== undefined ? { data } : {}),
-    createdAt: existing?.createdAt ?? Date.now(),
-  };
-
-  const next = await commit({
-    ...ledger,
-    findings: [...ledger.findings.filter((f) => f.key !== key), finding],
-  });
-  return { ledger: next, isNew: !existing, dataDropped };
-}
-
-/** Append a handoff note, keeping only the newest MAX_NOTES. */
-export async function recordNote(text: string): Promise<TaskLedger> {
-  const ledger = requireActive();
-  return commit({
-    ...ledger,
-    notes: [...ledger.notes, clamp(text, MAX_NOTE_CHARS)].slice(-MAX_NOTES),
-  });
+  return commit(next);
 }

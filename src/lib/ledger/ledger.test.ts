@@ -3,10 +3,8 @@ import { idbClearAll } from '../storage/idb';
 import { loadLedger, saveLedger, MAX_LEDGERS } from './ledgerStore';
 import {
   activateLedger,
-  applyPlanUpdate,
+  applyLedgerMutations,
   getActiveLedger,
-  recordFinding,
-  recordNote,
   resetActiveLedger,
   subscribeLedger,
 } from './activeLedger';
@@ -57,19 +55,52 @@ describe('ledgerStore', () => {
 });
 
 describe('activeLedger', () => {
-  it('mutations require an activated ledger', async () => {
-    await expect(recordNote('lost')).rejects.toThrow(/no active task ledger/i);
+  it('applies heterogeneous task-state mutations in one update', async () => {
+    await activateLedger('t1');
+    const ledger = await applyLedgerMutations([
+      { type: 'set_goal', goal: 'find five verified sellers' },
+      { type: 'replace_plan', plan: [{ text: 'scan comments', status: 'in_progress' }] },
+      {
+        type: 'upsert_finding',
+        finding: {
+          key: 'user-1',
+          summary: 'currently selling',
+          evidence: '我的房子正在挂牌',
+          rationale: 'Direct present-tense selling evidence.',
+        },
+      },
+      { type: 'add_note', text: 'post 1 scanned' },
+    ]);
+
+    expect(ledger).toMatchObject({
+      goal: 'find five verified sellers',
+      plan: [{ text: 'scan comments', status: 'in_progress' }],
+      findings: [{ key: 'user-1', evidence: '我的房子正在挂牌' }],
+      notes: ['post 1 scanned'],
+    });
   });
 
-  it('persists mutations and notifies subscribers', async () => {
+  it('mutations require an activated ledger', async () => {
+    await expect(
+      applyLedgerMutations([{ type: 'add_note', text: 'lost' }]),
+    ).rejects.toThrow(/no active task ledger/i);
+  });
+
+  it('persists an atomic mutation batch and notifies subscribers once', async () => {
     await activateLedger('t1');
     let notified = 0;
     const unsubscribe = subscribeLedger(() => notified++);
 
-    await applyPlanUpdate({ goal: 'collect 10 accounts', plan: [{ text: 'search' }] });
-    await recordFinding({ key: 'user-1', summary: 'wants to sell', data: { url: 'https://x' } });
+    await applyLedgerMutations([
+      { type: 'set_goal', goal: 'collect 10 accounts' },
+      { type: 'replace_plan', plan: [{ text: 'search' }] },
+      {
+        type: 'upsert_finding',
+        finding: { key: 'user-1', summary: 'wants to sell', data: { url: 'https://x' } },
+      },
+    ]);
 
-    expect(notified).toBeGreaterThanOrEqual(2);
+    expect(notified).toBe(1);
     unsubscribe();
 
     const stored = await loadLedger('t1');
@@ -80,7 +111,7 @@ describe('activeLedger', () => {
 
   it('re-activating a thread reloads what tools wrote earlier', async () => {
     await activateLedger('t1');
-    await recordNote('left off at comment 40');
+    await applyLedgerMutations([{ type: 'add_note', text: 'left off at comment 40' }]);
     resetActiveLedger();
 
     const reloaded = await activateLedger('t1');
@@ -89,7 +120,9 @@ describe('activeLedger', () => {
 
   it('activating a fresh thread yields an empty ledger, not the previous thread’s', async () => {
     await activateLedger('t1');
-    await recordFinding({ key: 'a', summary: 'from thread 1' });
+    await applyLedgerMutations([
+      { type: 'upsert_finding', finding: { key: 'a', summary: 'from thread 1' } },
+    ]);
 
     const fresh = await activateLedger('t2');
     expect(isLedgerEmpty(fresh)).toBe(true);
@@ -98,30 +131,57 @@ describe('activeLedger', () => {
 
   it('upserts findings by key instead of duplicating', async () => {
     await activateLedger('t1');
-    const first = await recordFinding({ key: 'user-1', summary: 'maybe selling' });
-    const second = await recordFinding({ key: 'user-1', summary: 'definitely selling' });
+    await applyLedgerMutations([
+      { type: 'upsert_finding', finding: { key: 'user-1', summary: 'maybe selling' } },
+    ]);
+    await applyLedgerMutations([
+      { type: 'upsert_finding', finding: { key: 'user-1', summary: 'definitely selling' } },
+    ]);
 
-    expect(first.isNew).toBe(true);
-    expect(second.isNew).toBe(false);
-    expect(second.ledger.findings).toHaveLength(1);
-    expect(second.ledger.findings[0].summary).toBe('definitely selling');
+    expect(getActiveLedger()?.findings).toHaveLength(1);
+    expect(getActiveLedger()?.findings[0].summary).toBe('definitely selling');
+  });
+
+  it('keeps qualification evidence and can remove a finding that fails review', async () => {
+    await activateLedger('t1');
+    await applyLedgerMutations([{
+      type: 'upsert_finding',
+      finding: {
+        key: 'user-1',
+        summary: 'currently listing their apartment',
+        evidence: '我的房子正在挂牌',
+        rationale: 'Present-tense listing directly establishes current selling intent.',
+      },
+    }]);
+
+    expect(getActiveLedger()?.findings[0]).toMatchObject({
+      evidence: '我的房子正在挂牌',
+      rationale: 'Present-tense listing directly establishes current selling intent.',
+    });
+
+    await applyLedgerMutations([
+      { type: 'remove_finding', key: 'user-1', reason: 'Evidence was about a completed past sale.' },
+    ]);
+    expect(getActiveLedger()?.findings).toEqual([]);
   });
 
   it('drops oversized finding data rather than storing it', async () => {
     await activateLedger('t1');
-    const { ledger, dataDropped } = await recordFinding({
-      key: 'big',
-      summary: 'huge payload',
-      data: { blob: 'x'.repeat(5000) },
-    });
-    expect(dataDropped).toBe(true);
+    const ledger = await applyLedgerMutations([{
+      type: 'upsert_finding',
+      finding: {
+        key: 'big',
+        summary: 'huge payload',
+        data: { blob: 'x'.repeat(5000) },
+      },
+    }]);
     expect(ledger.findings[0].data).toBeUndefined();
   });
 
   it('keeps only the newest MAX_NOTES notes', async () => {
     await activateLedger('t1');
     for (let i = 0; i < MAX_NOTES + 5; i++) {
-      await recordNote(`note ${i}`);
+      await applyLedgerMutations([{ type: 'add_note', text: `note ${i}` }]);
     }
     const notes = getActiveLedger()!.notes;
     expect(notes).toHaveLength(MAX_NOTES);
@@ -143,7 +203,13 @@ describe('formatLedgerDigest', () => {
           { text: 'search hangzhou realty', status: 'done' },
           { text: 'scan comments', status: 'in_progress' },
         ],
-        findings: [{ key: 'user-1', summary: 'says "want to sell my flat"', createdAt: 1 }],
+        findings: [{
+          key: 'user-1',
+          summary: 'says "want to sell my flat"',
+          evidence: '房子在挂牌，想尽快卖掉',
+          rationale: 'Explicit present selling intent.',
+          createdAt: 1,
+        }],
         notes: ['post 3 comments done'],
       }),
     );
@@ -153,6 +219,8 @@ describe('formatLedgerDigest', () => {
     expect(digest).toContain('[in_progress] scan comments');
     expect(digest).toContain('Findings (1 saved):');
     expect(digest).toContain('user-1: says "want to sell my flat"');
+    expect(digest).toContain('Evidence: 房子在挂牌，想尽快卖掉');
+    expect(digest).toContain('Qualification: Explicit present selling intent.');
     expect(digest).toContain('post 3 comments done');
   });
 

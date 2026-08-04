@@ -1,21 +1,39 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
-/**
- * A no-op signal tool: the loop stops when the model calls it (see the
- * hasToolCall stop condition in agentLoop). It exists so a turn ends when the
- * goal is met instead of grinding to the step limit, and so the model has to
- * make "I'm done" an explicit, inspectable decision rather than trailing off.
- */
-export const task_complete = tool({
-  description:
-    'Call this ONLY when the task goal is fully met — check it against the success criterion in your ' +
-    'task ledger (e.g. the target count of findings). Calling it ends the task. Do not call it to give ' +
-    'up or when blocked; instead explain the blocker in text and stop. Do not keep working after calling it.',
-  inputSchema: z.object({
-    summary: z
-      .string()
-      .describe('A short final summary of what was accomplished and where the results are (the ledger).'),
+export const CONTROL_TASK_TOOL = 'control_task';
+
+export const taskControlSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('complete'),
+    summary: z.string().describe('Concise final result for the user'),
   }),
-  execute: async ({ summary }) => ({ completed: true, summary }),
+  z.object({
+    type: z.literal('start_episode'),
+    objective: z.string().describe('One bounded sub-task for a fresh-context episode'),
+    rationale: z.string().describe('Why isolating this sub-task advances the overall goal'),
+  }),
+  z.object({
+    type: z.literal('finish_episode'),
+    status: z.enum(['done', 'partial', 'blocked']),
+    summary: z.string().describe('What this episode accomplished'),
+    handoffNote: z.string().describe('What the root planner should do next'),
+  }),
+]);
+
+export type TaskControlAction = z.infer<typeof taskControlSchema>;
+
+/**
+ * One typed control-flow boundary for both direct turns and orchestrated
+ * episodes. The outer loop interprets the action; execution only acknowledges
+ * it so the tool call/result pair remains valid provider history.
+ */
+export const control_task = tool({
+  description:
+    'Controls task execution through one typed action. Use complete only when the whole user goal passes ' +
+    'its success criteria. Use start_episode when a bounded sub-task should run in a fresh context. Inside ' +
+    'an episode, use finish_episode with done, partial, or blocked plus a handoff note. For collection tasks, ' +
+    'audit evidence and remove invalid findings before completing; quantity never compensates for quality.',
+  inputSchema: taskControlSchema,
+  execute: async (action) => ({ accepted: true, ...action }),
 });
