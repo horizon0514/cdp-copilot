@@ -71,7 +71,10 @@ export const close_page = tool({
 });
 
 export const wait_for = tool({
-  description: 'Waits for any of the given texts to appear on the page.',
+  description:
+    'Waits for any of the given texts to appear on the page. Use it for waiting on something the page ' +
+    'does by itself — a navigation settling, a slow fetch. If you are already inside an evaluate_script ' +
+    'program, await there instead of stepping back out to this tool.',
   inputSchema: z.object({
     text: z.array(z.string()).min(1),
     timeout: z.number().optional().describe('Max wait time in ms. Default 10000.'),
