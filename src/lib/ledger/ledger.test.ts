@@ -129,6 +129,62 @@ describe('activeLedger', () => {
     expect(getActiveLedger()?.threadId).toBe('t2');
   });
 
+  it('updates a single plan step by 1-based index without rewriting the plan', async () => {
+    await activateLedger('t1');
+    await applyLedgerMutations([
+      {
+        type: 'replace_plan',
+        plan: [
+          { text: 'open feed', status: 'pending' },
+          { text: 'scan comments', status: 'pending' },
+          { text: 'audit findings', status: 'pending' },
+        ],
+      },
+    ]);
+
+    await applyLedgerMutations([
+      { type: 'set_plan_status', step: 1, status: 'in_progress' },
+    ]);
+    expect(getActiveLedger()?.plan.map((p) => p.status)).toEqual([
+      'in_progress',
+      'pending',
+      'pending',
+    ]);
+
+    await applyLedgerMutations([
+      { type: 'set_plan_status', step: 1, status: 'done' },
+      { type: 'set_plan_status', step: 2, status: 'in_progress' },
+    ]);
+    expect(getActiveLedger()?.plan).toEqual([
+      { text: 'open feed', status: 'done' },
+      { text: 'scan comments', status: 'in_progress' },
+      { text: 'audit findings', status: 'pending' },
+    ]);
+  });
+
+  it('clears a previous in_progress step when another becomes in_progress', async () => {
+    await activateLedger('t1');
+    await applyLedgerMutations([
+      {
+        type: 'replace_plan',
+        plan: [
+          { text: 'a', status: 'in_progress' },
+          { text: 'b', status: 'pending' },
+        ],
+      },
+    ]);
+    await applyLedgerMutations([{ type: 'set_plan_status', step: 2, status: 'in_progress' }]);
+    expect(getActiveLedger()?.plan.map((p) => p.status)).toEqual(['pending', 'in_progress']);
+  });
+
+  it('rejects out-of-range plan step indexes', async () => {
+    await activateLedger('t1');
+    await applyLedgerMutations([{ type: 'replace_plan', plan: [{ text: 'only' }] }]);
+    await expect(
+      applyLedgerMutations([{ type: 'set_plan_status', step: 2, status: 'done' }]),
+    ).rejects.toThrow(/out of range/i);
+  });
+
   it('upserts findings by key instead of duplicating', async () => {
     await activateLedger('t1');
     await applyLedgerMutations([
@@ -222,6 +278,7 @@ describe('formatLedgerDigest', () => {
     expect(digest).toContain('Evidence: 房子在挂牌，想尽快卖掉');
     expect(digest).toContain('Qualification: Explicit present selling intent.');
     expect(digest).toContain('post 3 comments done');
+    expect(digest).toContain('set_plan_status');
   });
 
   it('windows findings to the newest and counts the rest', () => {

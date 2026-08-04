@@ -230,6 +230,8 @@ describe('streamAgentEvents — extra instructions (task-ledger digest)', () => 
     expect(prompts[0]).toContain('having sold something in the past does not show a current desire');
     expect(prompts[0]).toContain('audit every saved finding');
     expect(prompts[0]).toContain('update_task_ledger');
+    expect(prompts[0]).toContain('set_plan_status');
+    expect(prompts[0]).toContain('Treat the plan as live work tracking');
     expect(prompts[0]).toContain('Never lower the criteria or pad');
   });
 

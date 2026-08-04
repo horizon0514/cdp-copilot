@@ -76,6 +76,12 @@ export type LedgerMutation =
   | { type: 'set_goal'; goal: string }
   | { type: 'replace_plan'; plan: Array<{ text: string; status?: PlanItem['status'] }> }
   | {
+      type: 'set_plan_status';
+      /** 1-based index matching the digest numbering (`1. [pending] …`). */
+      step: number;
+      status: PlanItem['status'];
+    }
+  | {
       type: 'upsert_finding';
       finding: {
         key: string;
@@ -109,6 +115,26 @@ export async function applyLedgerMutations(mutations: LedgerMutation[]): Promise
           })),
         };
         break;
+      case 'set_plan_status': {
+        const index = mutation.step - 1;
+        if (!Number.isInteger(mutation.step) || index < 0 || index >= next.plan.length) {
+          throw new Error(
+            `Plan step ${mutation.step} is out of range (plan has ${next.plan.length} step(s); use 1-based indexes).`,
+          );
+        }
+        next = {
+          ...next,
+          plan: next.plan.map((item, i) => {
+            if (i === index) return { ...item, status: mutation.status };
+            // At most one in-progress step — starting a new one clears the old marker.
+            if (mutation.status === 'in_progress' && item.status === 'in_progress') {
+              return { ...item, status: 'pending' };
+            }
+            return item;
+          }),
+        };
+        break;
+      }
       case 'upsert_finding': {
         const input = mutation.finding;
         const key = clamp(input.key, 200);

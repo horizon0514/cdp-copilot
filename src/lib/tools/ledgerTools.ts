@@ -46,7 +46,18 @@ const mutation = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('replace_plan'),
-    plan: z.array(planItem).describe('The full replacement plan'),
+    plan: z.array(planItem).describe('The full replacement plan — only when the steps themselves change'),
+  }),
+  z.object({
+    type: z.literal('set_plan_status'),
+    step: z
+      .number()
+      .int()
+      .positive()
+      .describe('1-based plan step index from the ledger digest (1 = first step)'),
+    status: z
+      .enum(['pending', 'in_progress', 'done', 'skipped'])
+      .describe('New status for that step'),
   }),
   z.object({
     type: z.literal('upsert_finding'),
@@ -65,10 +76,12 @@ const mutation = z.discriminatedUnion('type', [
 
 export const update_task_ledger = tool({
   description:
-    'Atomically updates durable task state with one or more typed mutations. Use it to set the goal and ' +
-    'replace the plan, upsert or remove verified findings, and append handoff notes. The ledger appears in ' +
-    'your instructions every step and survives history trimming. For collection tasks, only upsert a finding ' +
-    'when direct evidence meets the goal’s criteria; remove any item that fails final review.',
+    'Atomically updates durable task state with one or more typed mutations. Use it to set the goal, ' +
+    'replace the plan when steps change, set_plan_status as you start/finish each step, upsert or remove ' +
+    'verified findings, and append handoff notes. Prefer set_plan_status over rewriting the whole plan. ' +
+    'The ledger appears in your instructions every step and survives history trimming. For collection ' +
+    'tasks, only upsert a finding when direct evidence meets the goal’s criteria; remove any item that ' +
+    'fails final review.',
   inputSchema: z.object({
     mutations: z
       .array(mutation)

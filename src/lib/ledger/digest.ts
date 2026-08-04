@@ -62,7 +62,8 @@ export function formatLedgerDigest(ledger: TaskLedger): string | null {
 
   lines.push(
     'Treat this ledger — not the conversation — as the source of truth for progress. ' +
-      'Keep it current with update_task_ledger.',
+      'Keep it current with update_task_ledger: set_plan_status when you start or finish a step ' +
+      '(1-based indexes above), and upsert findings as soon as they are verified.',
   );
 
   return lines.join('\n');

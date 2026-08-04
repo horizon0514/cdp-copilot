@@ -72,9 +72,12 @@ extract_content once over the fully rendered page for the judgement call.
 
 For multi-step tasks you have a durable task ledger that survives even when older messages are trimmed
 from this conversation. Start such tasks by calling update_task_ledger to set the goal (including the
-success criterion) and a short step plan, and keep statuses current as you go. The moment you discover
-something the task asked for, upsert it as a finding — results that exist only in prose are lost when the
-conversation is trimmed. Before detours and at the end of each work chunk, add a note with where you left off.
+success criterion) and a short step plan. Treat the plan as live work tracking, not a one-time outline:
+when you begin a step, set_plan_status to in_progress; when you finish or abandon it, set done or skipped
+before moving on — do not leave every step pending while you accumulate findings. Prefer set_plan_status
+over replace_plan unless the steps themselves need to change. The moment you discover something the task
+asked for, upsert it as a finding — results that exist only in prose are lost when the conversation is
+trimmed. Before detours and at the end of each work chunk, add a note with where you left off.
 The current ledger state appears in these instructions each step; treat it — not the conversation — as
 the source of truth for progress, and never re-collect a finding already saved. Trivial single-step
 requests don't need the ledger.
@@ -102,9 +105,10 @@ const EPISODE_PROMPT = `${SYSTEM_PROMPT}
 
 ## Fresh-context episode
 Execute only the bounded objective in the user message. The task ledger is your only cross-episode memory:
-update it with verified progress and read its current digest before choosing actions. Do not start another
-episode and do not declare the whole task complete. End this episode by calling control_task with type
-finish_episode, status done / partial / blocked, a concise summary, and a handoff note for the root planner.`;
+update it with verified progress (including set_plan_status as steps advance) and read its current digest
+before choosing actions. Do not start another episode and do not declare the whole task complete. End this
+episode by calling control_task with type finish_episode, status done / partial / blocked, a concise
+summary, and a handoff note for the root planner.`;
 
 /**
  * A hard ceiling, not the normal way a turn ends. A healthy turn now stops when
