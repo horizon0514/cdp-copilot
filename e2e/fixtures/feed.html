@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>pagehand e2e scrolling feed</title>
+    <style>
+      /* Tall enough that ten comments overflow any viewport — otherwise there is
+         nothing to scroll and the fixture never exercises the loading path. */
+      .comment { min-height: 140px; border-bottom: 1px solid #ddd; }
+    </style>
+  </head>
+  <body>
+    <h1>Discussion</h1>
+    <div id="comments"></div>
+    <p id="status">Loaded <span id="loaded-count">0</span> of 30 comments</p>
+
+    <script>
+      // A feed that only reveals its next batch when the reader nears the
+      // bottom — the pattern that forces scroll / wait / read cycles in a real
+      // page, and the one those cycles are expensive on.
+      //
+      // Scoped in an IIFE deliberately: a reachable append() would let a script
+      // summon all thirty comments without scrolling, and the round-trip count
+      // this fixture measures would stop meaning anything.
+      (() => {
+      const TOTAL = 30;
+      const BATCH = 10;
+
+      let loaded = 0;
+      let pending = false;
+
+      function append() {
+        const upto = Math.min(loaded + BATCH, TOTAL);
+        let html = '';
+        for (let n = loaded + 1; n <= upto; n += 1) {
+          html += `<div class="comment"><b>user-${n}</b><p>Comment number ${n}.</p></div>`;
+        }
+        document.getElementById('comments').insertAdjacentHTML('beforeend', html);
+        loaded = upto;
+        document.getElementById('loaded-count').textContent = String(loaded);
+      }
+
+      window.addEventListener('scroll', () => {
+        if (pending || loaded >= TOTAL) return;
+        if (window.scrollY + window.innerHeight < document.body.scrollHeight - 100) return;
+
+        // A real feed answers over the network, not instantly. The delay is what
+        // makes "scroll then read immediately" the wrong strategy.
+        pending = true;
+        setTimeout(() => {
+          append();
+          pending = false;
+        }, 150);
+      });
+
+      append();
+      })();
+    </script>
+  </body>
+</html>

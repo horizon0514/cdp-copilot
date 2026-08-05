@@ -25,14 +25,14 @@ const planItem = z.object({
 });
 
 const finding = z.object({
-  key: z.string().describe('Stable dedup key — an account id, URL, product id, etc.'),
-  summary: z.string().describe('One-line human-readable description of the qualifying result'),
+  key: z.string().describe('Stable dedup key — a URL, id, or other unique identifier'),
+  summary: z.string().describe('One-line human-readable description of the result'),
   evidence: z
     .string()
-    .describe('Verbatim page quote or directly observed value that proves the result qualifies'),
+    .describe('Verbatim page quote or directly observed value that supports the result'),
   rationale: z
     .string()
-    .describe('How the evidence satisfies the acceptance criteria, including relevant tense or status'),
+    .describe('How the evidence meets the goal’s criteria'),
   data: z
     .record(z.string(), z.unknown())
     .optional()
@@ -42,11 +42,22 @@ const finding = z.object({
 const mutation = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('set_goal'),
-    goal: z.string().describe('Overall goal including explicit success, acceptance, and rejection criteria'),
+    goal: z.string().describe('Overall goal with a clear success criterion'),
   }),
   z.object({
     type: z.literal('replace_plan'),
-    plan: z.array(planItem).describe('The full replacement plan'),
+    plan: z.array(planItem).describe('The full replacement plan — only when the steps themselves change'),
+  }),
+  z.object({
+    type: z.literal('set_plan_status'),
+    step: z
+      .number()
+      .int()
+      .positive()
+      .describe('1-based plan step index from the ledger digest (1 = first step)'),
+    status: z
+      .enum(['pending', 'in_progress', 'done', 'skipped'])
+      .describe('New status for that step'),
   }),
   z.object({
     type: z.literal('upsert_finding'),
@@ -55,7 +66,7 @@ const mutation = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('remove_finding'),
     key: z.string().describe('Exact stable key of the invalid or outdated finding'),
-    reason: z.string().describe('Why it fails the goal’s acceptance criteria'),
+    reason: z.string().describe('Why it no longer meets the goal’s criteria'),
   }),
   z.object({
     type: z.literal('add_note'),
@@ -65,10 +76,11 @@ const mutation = z.discriminatedUnion('type', [
 
 export const update_task_ledger = tool({
   description:
-    'Atomically updates durable task state with one or more typed mutations. Use it to set the goal and ' +
-    'replace the plan, upsert or remove verified findings, and append handoff notes. The ledger appears in ' +
-    'your instructions every step and survives history trimming. For collection tasks, only upsert a finding ' +
-    'when direct evidence meets the goal’s criteria; remove any item that fails final review.',
+    'Atomically updates durable task state with one or more typed mutations. Use it to set the goal, ' +
+    'replace the plan when steps change, set_plan_status as you start/finish each step, upsert or remove ' +
+    'verified findings, and append handoff notes. Prefer set_plan_status over rewriting the whole plan. ' +
+    'The ledger appears in your instructions every step and survives history trimming. Only upsert a ' +
+    'finding when direct evidence meets the goal’s criteria; remove items that fail review.',
   inputSchema: z.object({
     mutations: z
       .array(mutation)

@@ -47,6 +47,14 @@ describe('parseKeyCombo', () => {
     expect(descriptor.text).toBe('+');
   });
 
+  it('maps digits to DigitN codes (not KeyN)', () => {
+    expect(parseKeyCombo('5').descriptor).toMatchObject({
+      key: '5',
+      code: 'Digit5',
+      text: '5',
+    });
+  });
+
   it('treats a trailing "+" as the key, not a separator (e.g. "Control++" to zoom in)', () => {
     const { descriptor, modifiers } = parseKeyCombo('Control++');
     expect(descriptor.key).toBe('+');

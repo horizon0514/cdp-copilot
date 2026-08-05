@@ -81,10 +81,9 @@ export const BING_EXTRACT = `() => {
 export const web_search = tool({
   description:
     'Searches the web and returns clean ranked results (title, url, snippet) as JSON — far more reliable ' +
-    'than opening a search engine and reading the page. Pass concise keywords, NOT the raw question: ' +
-    'distill the essential terms (e.g. "杭州 二手房 成交量 2026" rather than a full sentence). If the ' +
-    'results are weak, call again with reformulated terms rather than repeating the same query. Then ' +
-    'navigate_page to a result url and extract_content to read it.',
+    'than opening a search engine and reading the page. Pass concise keywords, not a full-sentence ' +
+    'question. If results are weak, call again with reformulated terms rather than repeating the same ' +
+    'query. Then navigate_page to a result url and extract_content to read it.',
   inputSchema: z.object({
     query: z.string().describe('Concise search keywords — not a full-sentence question'),
     count: z.number().optional().describe(`How many results to return (default ${DEFAULT_COUNT}, max ${MAX_COUNT})`),

@@ -14,12 +14,35 @@ export interface StoredLedger {
   notes: string[];
 }
 
+/** Mirrors StopInfo in lib/llm/agentLoop — how a turn ended. */
+export interface TranscriptStop {
+  finishReason: string;
+  steps: number;
+  hitStepLimit: boolean;
+  totalTokens?: number;
+  aborted?: boolean;
+}
+
+export interface TranscriptMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  toolCalls: { name: string; status: string }[];
+  stop: TranscriptStop | null;
+  error: string | null;
+}
+
+export interface Transcript {
+  isStreaming: boolean;
+  messages: TranscriptMessage[];
+}
+
 export interface CdpTestApi {
   attach(tabId: number): Promise<unknown>;
   detach(): Promise<void>;
   attachedTabId(): number | null;
   call(name: string, args?: unknown): Promise<unknown>;
   toolNames(): string[];
+  transcript(): Transcript;
   ledger: {
     activate(threadId: string): Promise<StoredLedger>;
     get(): StoredLedger | null;

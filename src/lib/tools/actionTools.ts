@@ -11,7 +11,7 @@ export const click = tool({
   }),
   execute: async ({ uid, dblClick }) => {
     const session = await ensureSession();
-    await clickUid(session, uid, dblClick ?? false);
+    await clickUid(session, session.getTabId(), uid, dblClick ?? false);
     return { ok: true };
   },
 });
@@ -23,7 +23,7 @@ export const hover = tool({
   }),
   execute: async ({ uid }) => {
     const session = await ensureSession();
-    await hoverUid(session, uid);
+    await hoverUid(session, session.getTabId(), uid);
     return { ok: true };
   },
 });
@@ -37,7 +37,7 @@ export const fill = tool({
   }),
   execute: async ({ uid, value }) => {
     const session = await ensureSession();
-    await fillUid(session, uid, value);
+    await fillUid(session, session.getTabId(), uid, value);
     return { ok: true };
   },
 });
@@ -50,7 +50,7 @@ export const fill_form = tool({
   execute: async ({ elements }) => {
     const session = await ensureSession();
     for (const el of elements) {
-      await fillUid(session, el.uid, el.value);
+      await fillUid(session, session.getTabId(), el.uid, el.value);
     }
     return { ok: true, count: elements.length };
   },
