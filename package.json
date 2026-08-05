@@ -51,6 +51,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "devtools-protocol": "^0.0.1672245",
     "eslint": "^9.0.0",
     "fake-indexeddb": "^6.2.5",
     "typescript": "^5.6.0",

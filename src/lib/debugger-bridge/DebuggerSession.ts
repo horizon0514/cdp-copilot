@@ -49,8 +49,10 @@ type EventHandler = (params: unknown) => void;
 
 /**
  * Wraps chrome.debugger for a single attached tab. One instance = one live
- * CDP session. Detach (deliberate or via onDetach) tears the whole thing down;
- * callers must re-attach rather than assume the session survives.
+ * CDP session. Structurally a {@link import('../cdp').CdpConnection}, so the
+ * transport-agnostic helpers in `src/lib/cdp` can drive it directly.
+ * Detach (deliberate or via onDetach) tears the whole thing down; callers must
+ * re-attach rather than assume the session survives.
  */
 export class DebuggerSession {
   private readonly tabId: number;

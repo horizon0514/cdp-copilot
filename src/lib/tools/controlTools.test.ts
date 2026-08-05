@@ -6,7 +6,8 @@ describe('control_task schema', () => {
   it('advertises a top-level JSON Schema object (DeepSeek / OpenAI-compatible)', async () => {
     // Discriminated unions become anyOf with no root type — providers reject that
     // as type: null. The wire schema must stay a plain object.
-    const schema = zodSchema(control_task.inputSchema);
+    // inputSchema is a Zod object; AI SDK's FlexibleSchema typing is wider than zodSchema's param.
+    const schema = zodSchema(control_task.inputSchema as never);
     const json = await schema.jsonSchema;
     expect(json.type).toBe('object');
     expect(json).not.toHaveProperty('anyOf');
