@@ -1,4 +1,4 @@
-import { Settings, SettingsSchema } from './schema';
+import { Settings, SettingsSchema, normalizeSettings } from './schema';
 
 const STORAGE_KEY = 'pagehand:settings';
 const LEGACY_STORAGE_KEY = 'cdp-copilot:settings';
@@ -17,7 +17,7 @@ export async function getSettings(): Promise<Settings | null> {
     await chrome.storage.local.remove(LEGACY_STORAGE_KEY);
   }
 
-  return parsed.data;
+  return normalizeSettings(parsed.data);
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

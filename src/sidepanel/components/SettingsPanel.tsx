@@ -1,12 +1,14 @@
-import { FormEvent, useState } from 'react';
-import { Eye, EyeOff, KeyRound, Languages, X } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { Eye, EyeOff, KeyRound, Languages, Sparkles, X } from 'lucide-react';
 import {
   Settings,
   ProviderId,
+  ByokProviderId,
   DEFAULT_MODELS,
   DEFAULT_PROVIDER,
   DEEPSEEK_BASE_URL,
   HOSTED_BASE_URL,
+  HOSTED_MODELS,
   isHosted,
 } from '../../lib/storage/schema';
 import type { LocalePreference } from '../../lib/i18n';
@@ -20,6 +22,7 @@ import { cn } from '../lib/utils';
 /** Kept in sync with `host_permissions` in manifest.config.ts — origins listed
  * there are already granted, so asking again would raise a needless dialog. */
 const DEFAULT_HOST_ORIGINS = new Set([
+  'https://api.pagehand.app',
   'https://api.openai.com',
   'https://api.anthropic.com',
   'https://api.deepseek.com',
@@ -111,10 +114,35 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false);
 
   const hosted = isHosted(provider);
+  const [lastByokProvider, setLastByokProvider] = useState<ByokProviderId>(
+    initial && !isHosted(initial.provider)
+      ? (initial.provider as ByokProviderId)
+      : DEFAULT_PROVIDER,
+  );
+  useEffect(() => {
+    if (!hosted) setLastByokProvider(provider as ByokProviderId);
+  }, [hosted, provider]);
+
+  // Settings saved before the catalogue changed — or carried over from a BYOK
+  // provider — would otherwise render the select blank and save an id the
+  // server will reject.
+  const hostedModel = (HOSTED_MODELS as readonly string[]).includes(model)
+    ? model
+    : HOSTED_MODELS[0];
 
   const handleProviderChange = (next: ProviderId) => {
     setProvider(next);
     if (!initial || initial.provider !== next) setModel(DEFAULT_MODELS[next]);
+  };
+
+  /**
+   * Hosted and BYOK are the top-level choice; which company serves the tokens
+   * is a detail below it, not a peer. Remembering the last BYOK provider means
+   * looking at hosted and coming back doesn't silently reset someone's setup.
+   */
+  const handleModeChange = (next: 'hosted' | 'byok') => {
+    if (next === 'hosted') handleProviderChange('hosted');
+    else handleProviderChange(lastByokProvider);
   };
 
   const handleLanguageChange = (next: LocalePreference) => {
@@ -126,8 +154,11 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
     setError(null);
     setSaving(true);
     try {
-      const trimmedBaseURL = baseURL.trim() || undefined;
-      await ensureHostPermission(trimmedBaseURL, (origin) =>
+      // Hosted stores no base URL of its own — providers.ts reads the constant.
+      // Dropping it also clears anything a previous BYOK setup left behind,
+      // which would otherwise silently redirect hosted traffic.
+      const trimmedBaseURL = hosted ? undefined : baseURL.trim() || undefined;
+      await ensureHostPermission(trimmedBaseURL ?? (hosted ? HOSTED_BASE_URL : undefined), (origin) =>
         t('settings.permissionDenied', { origin }),
       );
       await onSave({
@@ -135,7 +166,7 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
         // Hosted has no user-held key; storing an empty string would only make
         // the settings look half-filled to anything that reads them later.
         apiKey: hosted ? undefined : apiKey.trim(),
-        model: model.trim(),
+        model: hosted ? hostedModel : model.trim(),
         baseURL: trimmedBaseURL,
       });
       onClose();
@@ -146,9 +177,8 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
     }
   };
 
-  const baseUrlHint = hosted
-    ? t('settings.baseUrlHint.hosted', { url: HOSTED_BASE_URL })
-    : provider === 'deepseek'
+  const baseUrlHint =
+    provider === 'deepseek'
       ? t('settings.baseUrlHint.deepseek', { url: DEEPSEEK_BASE_URL })
       : provider === 'openai'
         ? t('settings.baseUrlHint.openai')
@@ -196,14 +226,32 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
           </Field>
         </Section>
 
-        <Section icon={KeyRound} title={t('settings.sectionModel')}>
+        <Section icon={Sparkles} title={t('settings.sectionModel')}>
+          {/* The product's top-level choice: sign in and use it, or wire up your
+              own provider. Which company serves the tokens is a detail *inside*
+              the second answer, not a peer of it — listing five providers flat
+              made BYOK look like the main path. */}
+          <Field label={t('settings.mode')} hint={t(hosted ? 'settings.mode.hostedHint' : 'settings.mode.byokHint')} htmlFor="mode">
+            <Select value={hosted ? 'hosted' : 'byok'} onValueChange={(v) => handleModeChange(v as 'hosted' | 'byok')}>
+              <SelectTrigger id="mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hosted">{t('settings.mode.hosted')}</SelectItem>
+                <SelectItem value="byok">{t('settings.mode.byok')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </Section>
+
+        {!hosted && (
+        <Section icon={KeyRound} title={t('settings.sectionByok')}>
           <Field label={t('settings.provider')} htmlFor="provider">
             <Select value={provider} onValueChange={(v) => handleProviderChange(v as ProviderId)}>
               <SelectTrigger id="provider">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="hosted">Pagehand (hosted)</SelectItem>
                 <SelectItem value="deepseek">DeepSeek</SelectItem>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
@@ -212,9 +260,6 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
             </Select>
           </Field>
 
-          {/* Hosted mode has no key to ask for — that is the entire product
-              difference, so the field disappears rather than sitting disabled. */}
-          {!hosted && (
           <Field
             label={t('settings.apiKey')}
             hint={t('settings.apiKeyHint')}
@@ -243,7 +288,6 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
               className="font-mono text-[12px] tracking-tight"
             />
           </Field>
-          )}
 
           <Field label={t('settings.model')} htmlFor="model">
             <Input
@@ -267,19 +311,19 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
               id="baseURL"
               type="url"
               spellCheck={false}
-              placeholder={
-                provider === 'deepseek'
-                  ? DEEPSEEK_BASE_URL
-                  : hosted
-                    ? HOSTED_BASE_URL
-                    : 'https://…'
-              }
+              placeholder={provider === 'deepseek' ? DEEPSEEK_BASE_URL : 'https://…'}
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
               className="font-mono text-[12px] tracking-tight"
             />
           </Field>
         </Section>
+        )}
+
+        {/* Hosted deliberately has no fields. The model comes from the plan and
+            the endpoint is ours — exposing either would only be a way to get
+            them wrong. When plans offer a choice of models (PLAN-subscription
+            §7 Phase 4), that picker belongs here. */}
 
         {error && (
           <div

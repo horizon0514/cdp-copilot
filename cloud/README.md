@@ -52,7 +52,7 @@ Then in the extension's Settings:
 | --- | --- |
 | Provider | Pagehand (hosted) |
 | Base URL | `http://localhost:3000/api/v1` |
-| Model | `openai/gpt-4.1-mini` (OpenRouter ids are namespaced) |
+| Model | `deepseek/deepseek-v4-flash-0731` (OpenRouter ids are namespaced) |
 
 Chrome will ask once for permission on `http://localhost` — that origin is
 already declared in `optional_host_permissions`.

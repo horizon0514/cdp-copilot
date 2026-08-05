@@ -21,11 +21,21 @@ export const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
  */
 export function allowedModels(): Set<string> {
   const raw = process.env.HOSTED_MODEL_ALLOWLIST?.trim();
-  const list = raw
-    ? raw.split(',').map((m) => m.trim()).filter(Boolean)
-    : ['openai/gpt-4.1-mini', 'openai/gpt-4.1', 'anthropic/claude-sonnet-5'];
+  const list = raw ? raw.split(',').map((m) => m.trim()).filter(Boolean) : [HOSTED_DEFAULT_MODEL];
   return new Set(list);
 }
+
+/**
+ * DeepSeek, matching what the extension already defaults to for BYOK.
+ *
+ * Also the pragmatic choice for development: OpenRouter refuses OpenAI and
+ * Anthropic models with "This model is not available in your region" when the
+ * caller's IP is in mainland China, which is where the dev server runs. That
+ * particular 403 would not appear in production — the proxy runs in a Vercel US
+ * region there — but a default that only works on deployed infrastructure is a
+ * default nobody can debug locally.
+ */
+export const HOSTED_DEFAULT_MODEL = 'deepseek/deepseek-v4-flash-0731';
 
 export function routerApiKey(): string {
   const key = process.env.OPENROUTER_API_KEY?.trim();

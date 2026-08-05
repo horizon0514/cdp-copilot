@@ -158,6 +158,41 @@ is spent), not a “soft cap.” The unit economics leave no room for a soft one
 | Input tokens | ~20K (snapshot + resent history) | ~500K–1M |
 | Cost @ flash-class | ~$0.002 | **$0.05–0.10** |
 
+### 3.2.2 Measured, Phase 1a
+
+Real numbers from `deepseek/deepseek-v4-flash-0731` through the proxy, replacing
+the estimates above where they disagree:
+
+| | measured |
+| --- | --- |
+| Prompt, uncached | **~$0.09 / Mtok** |
+| Completion | **~$0.18 / Mtok** |
+| Prompt, cache hit | **~1/10 of uncached** |
+
+Two consecutive steps of one tool-using turn, showing history growth and what
+caching is worth:
+
+| | step 1 | step 2 |
+| --- | --- | --- |
+| prompt_tokens | 4,439 | 8,518 (tool result appended) |
+| cached_tokens | 4,352 | 4,352 |
+| cost | 99 µUSD | 533 µUSD |
+
+An earlier step of nearly identical size (4,436 prompt) but only 64 cached
+tokens cost **407 µUSD** — four times as much. **Prompt caching is the single
+biggest lever on cost per turn**, worth more than the choice of model.
+
+Which puts the compaction strategy in a new light. `elideStaleSnapshots` and
+`compactHistory` rewrite the message history between steps to keep long turns
+inside the context window (`agentLoop.ts`), and every rewrite invalidates the
+cached prefix past the edit point. Note `cached_tokens` stays flat at 4,352
+across both steps above: only the stable head is being reused. So context
+trimming and prompt caching are in direct tension, and the trade is now
+measurable rather than theoretical — worth revisiting before setting prices.
+
+The $0.05–0.10 heavy-turn figure should therefore be read as an **upper bound**
+(no cache reuse), not an expected value.
+
 `MAX_STEPS` is 100 and every step resends the whole turn, so a single user can
 burn a month of a $20 subscription in a day. Mitigations, all required:
 
@@ -397,14 +432,17 @@ Cloudflare Workers, one file moves unchanged. That hedge is free; take it.
 Split in two: the transport is the real unknown, and it can be proven with no
 auth and no billing at all. Do 1a before touching Supabase.
 
-**1a — transport (local only, no auth, no billing)**
+**1a — transport (local only, no auth, no billing) — DONE**
 
-- [ ] `cloud/` Next project + `lib/proxy.ts` → OpenRouter, streaming passthrough
-- [ ] Force `stream_options.include_usage`; tee the stream and log the usage
+- [x] `cloud/` Next project + `lib/proxy.ts` → OpenRouter, streaming passthrough
+- [x] Force `stream_options.include_usage`; tee the stream and log the usage
       object (proves the §4.4 accounting assumption while we’re here)
-- [ ] Model allowlist + request body size cap
-- [ ] Extension: `hosted` provider branch pointed at `http://localhost:3000/api/v1`
-- [ ] **Verify a real multi-step tool-using turn survives the proxy**
+- [x] Model allowlist + request body size cap
+- [x] Extension: `hosted` provider branch, endpoint chosen at build time
+- [x] **Verified: a multi-step tool-using turn survives the proxy.** Consecutive
+      steps with the prompt growing 4,439 → 8,518 as tool results append, both
+      200, usage and cost captured on each. Option A holds; **Option B is not
+      needed** and §4.2's open question is closed.
 
 **1b — auth**
 
@@ -469,6 +507,9 @@ auth and no billing at all. Do 1a before touching Supabase.
 5. Regions / compliance: any need to keep EU traffic separate?
 6. Keep DeepSeek as BYOK default for existing users during migration?
 7. What is the hosted `maxSteps`, and what is the per-turn cost ceiling?
+8. Is compaction worth its cost now that caching is measured (§3.2.2)? Trimming
+   history to fit the context window throws away the cached prefix that makes a
+   step 4x cheaper.
 
 ## 11. Immediate next step
 

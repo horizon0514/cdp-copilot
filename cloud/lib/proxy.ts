@@ -66,10 +66,23 @@ export async function proxyChatCompletion(request: Request, deps: ProxyDeps): Pr
   }
 
   const model = typeof body.model === 'string' ? body.model : '';
-  if (!allowedModels().has(model)) {
+  const allowed = allowedModels();
+  if (!allowed.has(model)) {
+    // Named in the log too: the client sees this as a 403 somewhere inside a
+    // turn, and "which model did it actually ask for" is the only question
+    // worth answering at that point.
+    console.warn(`[reject] model_not_allowed ${JSON.stringify(model)} user=${deps.userId}`);
     // A plan gate, not a pricing one: without it a Free user could route every
     // step of every turn through the most expensive model on the catalogue.
-    return errorResponse(403, 'model_not_allowed', `Model "${model}" is not available on this plan.`);
+    //
+    // Names both sides: a bare 403 in the panel gives no hint whether the model
+    // is misspelled, absent from the catalogue, or simply above the caller's
+    // plan, and the allowlist lives in an env var the caller cannot see.
+    return errorResponse(
+      403,
+      'model_not_allowed',
+      `Model "${model}" is not available on this plan. Allowed: ${[...allowed].join(', ')}.`,
+    );
   }
 
   const streaming = body.stream === true;

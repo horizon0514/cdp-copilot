@@ -56,6 +56,10 @@ export default defineManifest({
         optional_host_permissions: ['https://*/*', 'http://localhost/*'],
         // Mirrored by DEFAULT_HOST_ORIGINS in SettingsPanel.tsx.
         host_permissions: [
+          // Hosted mode's own endpoint: the default path must not open a
+          // permission dialog on first use. Dev builds point at localhost,
+          // which stays optional below.
+          'https://api.pagehand.app/*',
           'https://api.deepseek.com/*',
           'https://api.openai.com/*',
           'https://api.anthropic.com/*',

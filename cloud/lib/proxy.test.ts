@@ -55,7 +55,7 @@ test('sends the router key as a bearer token', async () => {
   // failed to reach the router, every request would 401 and look like a config
   // problem rather than a bug.
   const { calls } = captureUpstream(() => jsonResponse({ usage: { cost: 0.001 } }));
-  await proxyChatCompletion(post({ model: 'openai/gpt-4.1-mini', messages: [] }), deps());
+  await proxyChatCompletion(post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [] }), deps());
 
   assert.equal(calls[0]?.headers.get('authorization'), 'Bearer sk-or-test');
   assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
@@ -64,7 +64,7 @@ test('sends the router key as a bearer token', async () => {
 test('attributes the call to the app and the user', async () => {
   const { calls } = captureUpstream(() => jsonResponse({}));
   await proxyChatCompletion(
-    post({ model: 'openai/gpt-4.1-mini', messages: [] }),
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [] }),
     deps({ userId: 'user-42' }),
   );
 
@@ -78,7 +78,7 @@ test('never forwards a client-supplied user id', async () => {
   // server from the session, never accepted from the caller.
   const { calls } = captureUpstream(() => jsonResponse({}));
   await proxyChatCompletion(
-    post({ model: 'openai/gpt-4.1-mini', messages: [], user: 'someone-else' }),
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [], user: 'someone-else' }),
     deps({ userId: 'user-1' }),
   );
 
@@ -89,7 +89,7 @@ test('forces usage reporting on streamed requests', async () => {
   const { calls } = captureUpstream(
     () => new Response('data: [DONE]\n\n', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
   );
-  await proxyChatCompletion(post({ model: 'openai/gpt-4.1-mini', messages: [], stream: true }), deps());
+  await proxyChatCompletion(post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [], stream: true }), deps());
 
   assert.deepEqual(calls[0]?.body.stream_options, { include_usage: true });
 });
@@ -99,7 +99,7 @@ test('clamps an oversized completion request', async () => {
   // month of allowance.
   const { calls } = captureUpstream(() => jsonResponse({}));
   await proxyChatCompletion(
-    post({ model: 'openai/gpt-4.1-mini', messages: [], max_tokens: 1_000_000 }),
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [], max_tokens: 1_000_000 }),
     deps(),
   );
 
@@ -112,13 +112,19 @@ test('rejects a model outside the allowlist before calling the router', async ()
 
   assert.equal(res.status, 403);
   assert.equal(calls.length, 0);
+
+  // The rejection names both the model and what would be accepted — the caller
+  // cannot see the allowlist, so a bare 403 is a guessing game.
+  const { error } = (await res.json()) as { error: { message: string } };
+  assert.match(error.message, /evil\/expensive/);
+  assert.match(error.message, /deepseek\/deepseek-v4-flash-0731/);
 });
 
 test('reports the cost of a non-streamed call', async () => {
   const seen: (number | undefined)[] = [];
   captureUpstream(() => jsonResponse({ usage: { total_tokens: 12, cost: 0.0031 } }));
   await proxyChatCompletion(
-    post({ model: 'openai/gpt-4.1-mini', messages: [] }),
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [] }),
     deps({ onUsage: (usage) => seen.push(usage?.cost) }),
   );
 
@@ -135,7 +141,7 @@ test('passes a router error through with its status and body', async () => {
         headers: { 'content-type': 'application/json' },
       }),
   );
-  const res = await proxyChatCompletion(post({ model: 'openai/gpt-4.1-mini', messages: [] }), deps());
+  const res = await proxyChatCompletion(post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [] }), deps());
 
   assert.equal(res.status, 402);
   assert.match(await res.text(), /Insufficient credits/);
