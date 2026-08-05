@@ -23,33 +23,27 @@ export class ElementNotVisibleError extends Error {
 }
 
 /**
- * Page-viewport box for a node, walking up same-origin iframes.
- * DOM.getBoxModel alone is frame-local; Input and screenshots need root coords.
- *
- * Cross-origin iframes cannot be walked (and are usually invisible to a
- * tab-level debugger attach) — those throw ElementNotVisibleError.
+ * Sum same-origin iframe offsets so a frame-local box can be placed in the
+ * root viewport. Cross-origin frames cannot be walked and contribute 0 — those
+ * nodes are usually invisible to a tab-level debugger attach anyway.
  */
-const PAGE_BOX_FN = `function () {
-  const rect = this.getBoundingClientRect();
-  if (!rect || (rect.width === 0 && rect.height === 0)) {
-    return null;
-  }
-  let x = rect.left;
-  let y = rect.top;
+const FRAME_OFFSET_FN = `function () {
+  let x = 0;
+  let y = 0;
   let win = this.ownerDocument && this.ownerDocument.defaultView;
   while (win) {
-    let frame;
+    var frame;
     try {
       frame = win.frameElement;
     } catch (err) {
-      return null;
+      break;
     }
     if (!frame) break;
-    const frameRect = frame.getBoundingClientRect();
+    var frameRect = frame.getBoundingClientRect();
     x += frameRect.left;
     y += frameRect.top;
     try {
-      const style = win.parent.getComputedStyle(frame);
+      var style = win.parent.getComputedStyle(frame);
       x += parseFloat(style.borderLeftWidth) || 0;
       y += parseFloat(style.borderTopWidth) || 0;
     } catch (err) {
@@ -57,9 +51,37 @@ const PAGE_BOX_FN = `function () {
     }
     win = win.parent;
   }
-  return { x: x, y: y, width: rect.width, height: rect.height };
+  return { x: x, y: y };
 }`;
 
+async function frameOffset(cdp: CdpConnection, backendNodeId: number): Promise<Point> {
+  try {
+    const { object } = await cdpSend(cdp, 'DOM.resolveNode', { backendNodeId });
+    if (!object?.objectId) return { x: 0, y: 0 };
+    try {
+      const { result, exceptionDetails } = await cdpSend(cdp, 'Runtime.callFunctionOn', {
+        objectId: object.objectId,
+        functionDeclaration: FRAME_OFFSET_FN,
+        returnByValue: true,
+      });
+      if (exceptionDetails) return { x: 0, y: 0 };
+      const offset = result?.value as Point | undefined;
+      return offset ?? { x: 0, y: 0 };
+    } finally {
+      await cdpSend(cdp, 'Runtime.releaseObject', { objectId: object.objectId }).catch(() => {
+        /* object may already be gone */
+      });
+    }
+  } catch {
+    return { x: 0, y: 0 };
+  }
+}
+
+/**
+ * Page-viewport box for a node.
+ * Uses DOM.getBoxModel for the frame-local rect (reliable with AX backendNodeIds),
+ * then adds same-origin iframe offsets so Input/screenshot coords match the root.
+ */
 export async function getBoxInPage(
   cdp: CdpConnection,
   backendNodeId: number,
@@ -67,28 +89,25 @@ export async function getBoxInPage(
 ): Promise<Rect> {
   await cdpSend(cdp, 'DOM.scrollIntoViewIfNeeded', { backendNodeId });
 
-  const { object } = await cdpSend(cdp, 'DOM.resolveNode', { backendNodeId });
-  if (!object?.objectId) throw new ElementNotVisibleError(detail);
-
+  let model: { content: number[] };
   try {
-    const { result, exceptionDetails } = await cdpSend(cdp, 'Runtime.callFunctionOn', {
-      objectId: object.objectId,
-      functionDeclaration: PAGE_BOX_FN,
-      returnByValue: true,
-    });
-    if (exceptionDetails) {
-      throw new ElementNotVisibleError(detail);
-    }
-    const box = result?.value as Rect | null;
-    if (!box || (box.width === 0 && box.height === 0)) {
-      throw new ElementNotVisibleError(detail);
-    }
-    return box;
-  } finally {
-    await cdpSend(cdp, 'Runtime.releaseObject', { objectId: object.objectId }).catch(() => {
-      /* object may already be gone */
-    });
+    ({ model } = await cdpSend(cdp, 'DOM.getBoxModel', { backendNodeId }));
+  } catch {
+    throw new ElementNotVisibleError(detail);
   }
+
+  const [x1, y1, , , x3, y3] = model.content;
+  const width = x3 - x1;
+  const height = y3 - y1;
+  if (width === 0 && height === 0) throw new ElementNotVisibleError(detail);
+
+  const offset = await frameOffset(cdp, backendNodeId);
+  return {
+    x: x1 + offset.x,
+    y: y1 + offset.y,
+    width,
+    height,
+  };
 }
 
 export function rectCenter(box: Rect): Point {
