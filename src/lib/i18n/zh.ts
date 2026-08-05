@@ -95,6 +95,7 @@ export const zh: Messages = {
   'settings.baseUrl': 'Base URL',
   'settings.baseUrlOptional': 'Base URL',
   'settings.optional': '可选',
+  'settings.baseUrlHint.hosted': '留空 → {url}。填写可指向本地开发服务器。',
   'settings.baseUrlHint.deepseek': '留空 → {url}。自定义域名需一次性授权。',
   'settings.baseUrlHint.openai': '需提供 /responses。自定义域名需一次性授权。',
   'settings.baseUrlHint.other': 'OpenRouter、Azure、Ollama 等 — 需一次性授权。',

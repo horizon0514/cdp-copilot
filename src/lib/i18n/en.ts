@@ -104,6 +104,7 @@ export const en = {
   'settings.baseUrl': 'Base URL',
   'settings.baseUrlOptional': 'Base URL',
   'settings.optional': 'Optional',
+  'settings.baseUrlHint.hosted': 'Empty → {url}. Override to point at a local dev server.',
   'settings.baseUrlHint.deepseek': 'Empty → {url}. Custom hosts need a one-time permission.',
   'settings.baseUrlHint.openai': 'Must expose /responses. Custom hosts need a one-time permission.',
   'settings.baseUrlHint.other': 'OpenRouter, Azure, Ollama, etc. — needs a one-time permission.',

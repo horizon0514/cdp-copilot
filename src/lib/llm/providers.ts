@@ -1,10 +1,25 @@
 import { wrapLanguageModel, defaultSettingsMiddleware, type LanguageModel } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { DEEPSEEK_BASE_URL, Settings } from '../storage/schema';
+import { DEEPSEEK_BASE_URL, HOSTED_BASE_URL, Settings } from '../storage/schema';
+import { createHostedFetch } from './hostedFetch';
 
 export function resolveModel(settings: Settings): LanguageModel {
   switch (settings.provider) {
+    case 'hosted': {
+      const pagehand = createOpenAI({
+        // Deliberately absent: the hosted path carries no user-held key. Auth is
+        // a session token injected per request, because a static apiKey would be
+        // captured once and expire mid-turn — see hostedFetch.ts.
+        apiKey: '',
+        baseURL: settings.baseURL ?? HOSTED_BASE_URL,
+        fetch: createHostedFetch(),
+      });
+      // Chat Completions: our proxy is OpenAI-compatible by design, so the
+      // multi-step tool loop keeps running in the panel and each step is one
+      // ordinary request. Nothing about agentLoop changes.
+      return pagehand.chat(settings.model);
+    }
     case 'deepseek': {
       const deepseek = createOpenAI({
         apiKey: settings.apiKey,

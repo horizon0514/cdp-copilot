@@ -6,6 +6,8 @@ import {
   DEFAULT_MODELS,
   DEFAULT_PROVIDER,
   DEEPSEEK_BASE_URL,
+  HOSTED_BASE_URL,
+  isHosted,
 } from '../../lib/storage/schema';
 import type { LocalePreference } from '../../lib/i18n';
 import { useI18n } from '../i18n/useT';
@@ -108,6 +110,8 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const hosted = isHosted(provider);
+
   const handleProviderChange = (next: ProviderId) => {
     setProvider(next);
     if (!initial || initial.provider !== next) setModel(DEFAULT_MODELS[next]);
@@ -126,7 +130,14 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
       await ensureHostPermission(trimmedBaseURL, (origin) =>
         t('settings.permissionDenied', { origin }),
       );
-      await onSave({ provider, apiKey: apiKey.trim(), model: model.trim(), baseURL: trimmedBaseURL });
+      await onSave({
+        provider,
+        // Hosted has no user-held key; storing an empty string would only make
+        // the settings look half-filled to anything that reads them later.
+        apiKey: hosted ? undefined : apiKey.trim(),
+        model: model.trim(),
+        baseURL: trimmedBaseURL,
+      });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -135,8 +146,9 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
     }
   };
 
-  const baseUrlHint =
-    provider === 'deepseek'
+  const baseUrlHint = hosted
+    ? t('settings.baseUrlHint.hosted', { url: HOSTED_BASE_URL })
+    : provider === 'deepseek'
       ? t('settings.baseUrlHint.deepseek', { url: DEEPSEEK_BASE_URL })
       : provider === 'openai'
         ? t('settings.baseUrlHint.openai')
@@ -191,6 +203,7 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="hosted">Pagehand (hosted)</SelectItem>
                 <SelectItem value="deepseek">DeepSeek</SelectItem>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
@@ -199,6 +212,9 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
             </Select>
           </Field>
 
+          {/* Hosted mode has no key to ask for — that is the entire product
+              difference, so the field disappears rather than sitting disabled. */}
+          {!hosted && (
           <Field
             label={t('settings.apiKey')}
             hint={t('settings.apiKeyHint')}
@@ -227,6 +243,7 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
               className="font-mono text-[12px] tracking-tight"
             />
           </Field>
+          )}
 
           <Field label={t('settings.model')} htmlFor="model">
             <Input
@@ -250,7 +267,13 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
               id="baseURL"
               type="url"
               spellCheck={false}
-              placeholder={provider === 'deepseek' ? DEEPSEEK_BASE_URL : 'https://…'}
+              placeholder={
+                provider === 'deepseek'
+                  ? DEEPSEEK_BASE_URL
+                  : hosted
+                    ? HOSTED_BASE_URL
+                    : 'https://…'
+              }
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
               className="font-mono text-[12px] tracking-tight"
