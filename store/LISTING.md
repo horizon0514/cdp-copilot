@@ -74,26 +74,115 @@ Pagehand 是 Chrome 侧栏里的 AI 助手：通过 Chrome DevTools Protocol 读
 - Language: English (primary), Chinese (China) via `_locales`
 - Single purpose: Help users read and automate the current browser tab with an on-device AI side panel over CDP.
 
-## Privacy practices (dashboard questionnaire)
+## Privacy practices (dashboard — copy/paste)
 
-| Question | Answer |
-|----------|--------|
-| Collects user data? | Yes — only what you send to your chosen LLM provider (prompts + page-derived context). Not collected by Pagehand servers. |
-| Personally identifiable info | API key stored locally; not transmitted to Pagehand |
-| Remote code | No |
-| Sold data | No |
-| Used for purposes unrelated to core | No |
-| Privacy policy | https://pagehand.vercel.app/privacy |
+Path: Developer Dashboard → your item → **Privacy practices**
 
-Permissions justification (paste into dashboard as needed):
+Privacy policy URL:
 
-- `sidePanel` — chat UI lives in the side panel  
-- `debugger` — CDP access to read/automate the attached tab  
-- `tabs` / `activeTab` — know which tab to attach; optional tab mentions  
-- `storage` — settings, locale, chat history  
-- `contextMenus` — “ask about page / selection”  
-- `scripting` — screenshot lightbox on the page tab  
-- Host permissions for `api.deepseek.com`, `api.openai.com`, `api.anthropic.com` — default providers; broader hosts optional at runtime  
+```
+https://pagehand.vercel.app/privacy
+```
+
+### Single purpose description
+
+```
+Help users read and automate the current browser tab with an on-device AI side panel over the Chrome DevTools Protocol. Users bring their own LLM API key; there is no Pagehand cloud backend.
+```
+
+### Remote code
+
+Select: **No, I am not using remote code**
+
+(Justification field leave blank / N/A. The extension only talks to LLM APIs the user configures; it never downloads or evaluates remote JS.)
+
+### Data collection — check these boxes
+
+Disclose handling even when data stays local or goes only to the user’s chosen LLM provider (not a Pagehand server).
+
+| Data type | Check? | Why |
+|-----------|--------|-----|
+| Personally identifiable information | **Yes** | API keys stored in `chrome.storage.local`; prompts / page text sent to the user’s LLM may include names, emails, etc. |
+| Health information | No | |
+| Financial and payment information | **Yes** | User may ask the agent to fill payment forms or summarize checkout pages; form values and page text can include card/payment details |
+| Authentication information | **Yes** | User-supplied LLM API keys (and optionally custom provider credentials) are stored locally and sent to that provider |
+| Personal communications | No | |
+| Location | No | |
+| Web history | **Yes** | Bound-tab URL/title, `@` tab mentions, and network request URLs/metadata used for agent context |
+| User activity | **Yes** | Chat messages, tool calls, console messages captured while attached |
+| Website content | **Yes** | Accessibility snapshots, DOM-derived form values, screenshots, and page text sent to the configured LLM |
+
+If the dashboard uses slightly different labels, map: **Website content** / **Form data** / **Web browsing activity** → yes; ads/location/health → no.
+
+### Data usage certifications — check ALL
+
+- [x] I do **not** sell or transfer user data to third parties, outside of the approved use cases
+- [x] I do **not** use or transfer user data for purposes that are unrelated to my item’s single purpose
+- [x] I do **not** use or transfer user data to determine creditworthiness or for lending purposes
+
+Note for reviewers (optional if there’s a free-text box): Pagehand has no backend. Data leaves the device only as HTTPS requests from the browser to the LLM provider the user configured (DeepSeek / OpenAI / Anthropic / custom OpenAI-compatible URL).
+
+### Permission justifications (one field per permission)
+
+**sidePanel**
+```
+The chat UI and agent loop run in Chrome’s side panel so the user can talk to the AI while viewing the page.
+```
+
+**debugger**
+```
+Required to speak Chrome DevTools Protocol (Accessibility, DOM, Input, Page, Network, Log, Runtime) so the agent can snapshot the page, click/fill, and inspect console/network on the attached tab. Chrome shows the “debugging this browser” banner while attached.
+```
+
+**tabs**
+```
+Identify which tab to attach, show bound-tab status, and support @-mentions of other open tabs as context.
+```
+
+**activeTab**
+```
+Access the tab the user is interacting with when they open the side panel or use the context menu, without requesting broad permanent access to every site.
+```
+
+**storage**
+```
+Persist LLM settings (provider, model, API key), UI locale, and related preferences in chrome.storage.local on this device only (not Chrome Sync).
+```
+
+**contextMenus**
+```
+Provide “ask about this page / selection” entries so users can send page context into the side panel chat.
+```
+
+**scripting**
+```
+Inject a temporary screenshot lightbox overlay onto the page tab so images from the chat can be viewed full-viewport.
+```
+
+**Host permission: https://api.deepseek.com/***
+```
+Default DeepSeek API endpoint for chat completions when the user selects DeepSeek and supplies their own key.
+```
+
+**Host permission: https://api.openai.com/***
+```
+Default OpenAI API endpoint when the user selects OpenAI and supplies their own key.
+```
+
+**Host permission: https://api.anthropic.com/***
+```
+Default Anthropic API endpoint when the user selects Anthropic and supplies their own key.
+```
+
+**Optional host permission: https://*/* and http://localhost/***
+```
+Requested only at runtime when the user configures a custom OpenAI-compatible base URL or needs page-origin access for features like the screenshot lightbox on that site. Not granted at install by default.
+```
+
+If the dashboard collapses hosts into one field:
+```
+Default hosts are the built-in LLM providers (DeepSeek, OpenAI, Anthropic). Broader https://*/* and localhost are optional and requested only when the user sets a custom provider URL or needs on-page overlay injection.
+```
 
 ## Assets checklist
 
@@ -103,7 +192,22 @@ Permissions justification (paste into dashboard as needed):
 | Store icon | `store/assets/icon-128.png` | 128×128 |
 | Small promo | `store/assets/promo-small-440x280.png` | 440×280 |
 | Marquee promo | `store/assets/promo-marquee-1400x560.png` | 1400×560 |
-| Screenshot(s) | `store/assets/screenshot-*.png` | 1280×800 or 640×400 |
+| Screenshot 1 (upload first) | `store/assets/screenshot-1280x800.png` | 1280×800 — Automate |
+| Screenshot 2 | `store/assets/screenshot-inspect-1280x800.png` | 1280×800 — Read / CDP |
+| Screenshot 3 | `store/assets/screenshot-private-1280x800.png` | 1280×800 — BYO key |
+| Screenshot (small) | `store/assets/screenshot-640x400.png` | 640×400 — Automate |
+| ZH Screenshot 1 | `store/assets/screenshot-zh-1280x800.png` | 1280×800 — 自动操作 |
+| ZH Screenshot 2 | `store/assets/screenshot-zh-inspect-1280x800.png` | 1280×800 — 读懂页面 |
+| ZH Screenshot 3 | `store/assets/screenshot-zh-private-1280x800.png` | 1280×800 — 自备密钥 |
+| ZH Screenshot (small) | `store/assets/screenshot-zh-640x400.png` | 640×400 — 自动操作 |
+
+Upload English shots under the default locale; upload `screenshot-zh-*.png` under **Chinese (China)** locale screenshots.
+
+Regenerate after editing `store/screenshot-mock.html`:
+
+```bash
+npm run store:shots
+```
 
 ## Upload steps
 

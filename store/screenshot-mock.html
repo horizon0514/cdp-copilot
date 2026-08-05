@@ -2,49 +2,198 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Pagehand store screenshot</title>
+    <title>Pagehand store screenshots</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700;900&family=Public+Sans:wght@400;500;600;700&family=Syne:wght@650;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
       :root {
         --ink: #0b0f0d;
-        --panel: #121815;
-        --line: rgba(232, 239, 230, 0.12);
-        --paper: #e8efe6;
+        --ink-2: #121815;
+        --ink-3: #1a211c;
         --fog: #9aa89c;
+        --paper: #e8efe6;
+        --paper-dim: #c5d0c3;
         --mark: #d6f25c;
-        --page: #f4f1ea;
-        --page-ink: #1c1a16;
+        --mark-deep: #a8c93a;
+        --line: rgba(232, 239, 230, 0.12);
+        --line-strong: rgba(232, 239, 230, 0.22);
+        --glow: rgba(214, 242, 92, 0.16);
+        --page: #f2f5f1;
+        --page-ink: #141a16;
+        --page-mute: #5f6b62;
       }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
+      * { box-sizing: border-box; margin: 0; }
+      html, body {
         width: 1280px;
         height: 800px;
         overflow: hidden;
-        font-family: "Public Sans", sans-serif;
-        background: #1a1f1c;
+        background: var(--ink);
         color: var(--paper);
+        font-family: "Public Sans", sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
-      .frame {
-        display: grid;
-        grid-template-columns: 1fr 380px;
+      body.size-640 {
+        width: 640px;
+        height: 400px;
+      }
+      body.size-640 .shot { width: 640px; height: 400px; }
+
+      .shot {
+        position: relative;
         width: 1280px;
         height: 800px;
-        background: var(--ink);
+        overflow: hidden;
+        background:
+          radial-gradient(900px 420px at 18% 0%, rgba(214, 242, 92, 0.1), transparent 60%),
+          radial-gradient(700px 380px at 88% 100%, rgba(214, 242, 92, 0.06), transparent 55%),
+          linear-gradient(165deg, #101612 0%, var(--ink) 48%, #0a0e0b 100%);
       }
+      .shot::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(232, 239, 230, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(232, 239, 230, 0.035) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 75%);
+        pointer-events: none;
+      }
+      .grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.04;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      /* ——— Caption strip ——— */
+      .caption {
+        position: relative;
+        z-index: 2;
+        padding: 36px 48px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 920px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mark);
+      }
+      .eyebrow::before {
+        content: "";
+        width: 18px;
+        height: 2px;
+        background: var(--mark);
+        box-shadow: 0 0 12px var(--glow);
+      }
+      .caption h1 {
+        font-family: Syne, sans-serif;
+        font-weight: 800;
+        font-size: 44px;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
+        color: #f4faf2;
+      }
+      .caption p {
+        font-size: 17px;
+        line-height: 1.4;
+        color: var(--fog);
+        max-width: 48ch;
+      }
+      .caption .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .pill {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--paper-dim);
+        border: 1px solid var(--line-strong);
+        background: rgba(18, 24, 21, 0.7);
+        border-radius: 999px;
+        padding: 6px 11px;
+      }
+      .pill em {
+        font-style: normal;
+        color: var(--mark);
+      }
+
+      /* ——— Stage (product frame) ——— */
+      .stage {
+        position: absolute;
+        z-index: 2;
+        left: 48px;
+        right: 48px;
+        bottom: 36px;
+        top: 168px;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        border-radius: 18px;
+        overflow: hidden;
+        background: var(--ink-2);
+        box-shadow:
+          0 0 0 1px rgba(232, 239, 230, 0.1),
+          0 0 0 1px rgba(214, 242, 92, 0.08) inset,
+          0 28px 80px rgba(0, 0, 0, 0.55),
+          0 0 60px rgba(214, 242, 92, 0.06);
+      }
+      .chrome {
+        grid-column: 1 / -1;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        background: #0e1310;
+        border-bottom: 1px solid var(--line);
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #2a332c;
+      }
+      .dot:nth-child(1) { background: #ff5f57; }
+      .dot:nth-child(2) { background: #febc2e; }
+      .dot:nth-child(3) { background: #28c840; }
+      .omnibox {
+        margin-left: 10px;
+        flex: 1;
+        height: 22px;
+        border-radius: 7px;
+        background: rgba(232, 239, 230, 0.06);
+        border: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--fog);
+        max-width: 420px;
+      }
+      .omnibox span { color: var(--mark); margin-right: 6px; }
+
       .page {
         position: relative;
-        margin: 28px 0 28px 28px;
-        border-radius: 16px 0 0 16px;
         background: var(--page);
         color: var(--page-ink);
-        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-        padding: 48px 56px;
+        padding: 36px 40px;
         overflow: hidden;
       }
       .page::before {
@@ -52,81 +201,84 @@
         position: absolute;
         inset: 0;
         background-image:
-          linear-gradient(rgba(28,26,22,0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(28,26,22,0.05) 1px, transparent 1px);
-        background-size: 48px 48px;
-        mask-image: linear-gradient(180deg, #000, transparent 85%);
+          linear-gradient(rgba(20, 26, 22, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 26, 22, 0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        mask-image: linear-gradient(180deg, #000 30%, transparent 90%);
         pointer-events: none;
       }
-      .url {
-        position: absolute;
-        top: 18px;
-        left: 20px;
-        right: 20px;
-        height: 34px;
-        border-radius: 10px;
-        background: rgba(28,26,22,0.06);
-        display: flex;
-        align-items: center;
-        padding: 0 14px;
+      .page-kicker {
+        position: relative;
         font-family: "IBM Plex Mono", monospace;
-        font-size: 12px;
-        color: #5c574e;
+        font-size: 11px;
+        color: var(--page-mute);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
       }
-      .page h1 {
+      .page h2 {
         position: relative;
-        margin: 48px 0 12px;
         font-family: Syne, sans-serif;
-        font-size: 42px;
+        font-weight: 800;
+        font-size: 34px;
         letter-spacing: -0.04em;
-        max-width: 12ch;
         line-height: 1.05;
+        max-width: 14ch;
+        margin-bottom: 10px;
       }
-      .page p.lead {
+      .page .lead {
         position: relative;
-        max-width: 34ch;
-        color: #5c574e;
-        font-size: 18px;
+        color: var(--page-mute);
+        font-size: 15px;
         line-height: 1.45;
+        max-width: 36ch;
       }
       .form {
         position: relative;
-        margin-top: 36px;
+        margin-top: 28px;
         display: grid;
-        gap: 12px;
-        max-width: 360px;
+        gap: 10px;
+        max-width: 340px;
+      }
+      .label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--page-mute);
+        margin-bottom: -4px;
       }
       .field {
-        border: 1.5px solid #d6d0c4;
+        border: 1.5px solid #cfd6cf;
         border-radius: 10px;
-        padding: 12px 14px;
+        padding: 11px 13px;
         background: #fff;
-        font-size: 15px;
+        font-size: 14px;
       }
       .field.active {
-        border-color: #0b0f0d;
+        border-color: var(--ink);
         box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.55);
       }
       .pay {
-        margin-top: 4px;
+        margin-top: 2px;
         border: 0;
         border-radius: 999px;
-        background: #0b0f0d;
-        color: #e8efe6;
+        background: var(--ink);
+        color: var(--paper);
         font-weight: 600;
-        font-size: 15px;
-        padding: 12px 18px;
+        font-size: 14px;
+        padding: 11px 18px;
         width: fit-content;
       }
       .cursor {
         position: absolute;
-        left: 290px;
-        top: 348px;
+        left: 300px;
+        top: 286px;
         width: 18px;
         height: 18px;
-        border: 2px solid #0b0f0d;
+        border: 2px solid var(--ink);
         border-radius: 50%;
-        box-shadow: 0 0 0 6px rgba(214, 242, 92, 0.35);
+        background: rgba(214, 242, 92, 0.25);
+        box-shadow: 0 0 0 7px rgba(214, 242, 92, 0.28);
+        z-index: 3;
       }
       .cursor::after {
         content: "";
@@ -135,67 +287,99 @@
         top: 10px;
         width: 12px;
         height: 16px;
-        background: #0b0f0d;
+        background: var(--ink);
         clip-path: polygon(0 0, 100% 70%, 55% 70%, 75% 100%, 55% 100%, 35% 70%, 0 70%);
       }
+      .callout {
+        position: absolute;
+        z-index: 4;
+        left: 332px;
+        top: 248px;
+        background: var(--ink);
+        color: var(--mark);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(214, 242, 92, 0.45);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        white-space: nowrap;
+      }
+      .callout::before {
+        content: "";
+        position: absolute;
+        left: -5px;
+        bottom: 10px;
+        width: 8px;
+        height: 8px;
+        background: var(--ink);
+        border-left: 1px solid rgba(214, 242, 92, 0.45);
+        border-bottom: 1px solid rgba(214, 242, 92, 0.45);
+        transform: rotate(45deg);
+      }
+
+      /* Side panel */
       .side {
-        background: var(--panel);
+        background: var(--ink-2);
         border-left: 1px solid var(--line);
         display: flex;
         flex-direction: column;
+        min-width: 0;
       }
       .side-head {
-        height: 52px;
+        height: 48px;
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 0 16px;
+        gap: 9px;
+        padding: 0 14px;
         border-bottom: 1px solid var(--line);
         font-family: Syne, sans-serif;
         font-weight: 700;
+        font-size: 15px;
         letter-spacing: -0.03em;
       }
       .side-head img {
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
       }
       .bound {
-        height: 34px;
+        height: 32px;
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 0 16px;
+        padding: 0 14px;
         border-bottom: 1px solid var(--line);
-        font-size: 12px;
+        font-size: 11px;
         color: var(--fog);
       }
-      .dot {
+      .live {
         width: 7px;
         height: 7px;
         border-radius: 50%;
         background: var(--mark);
-        box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.18);
+        box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.2);
       }
       .chat {
         flex: 1;
-        padding: 18px 16px;
+        padding: 14px;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 10px;
         overflow: hidden;
       }
       .bubble {
-        max-width: 92%;
-        padding: 10px 12px;
-        border-radius: 12px;
-        font-size: 13.5px;
-        line-height: 1.45;
+        max-width: 95%;
+        padding: 9px 11px;
+        border-radius: 11px;
+        font-size: 12.5px;
+        line-height: 1.4;
       }
       .user {
         align-self: flex-end;
         background: rgba(214, 242, 92, 0.14);
-        border: 1px solid rgba(214, 242, 92, 0.28);
+        border: 1px solid rgba(214, 242, 92, 0.3);
       }
       .assistant {
         align-self: flex-start;
@@ -206,78 +390,524 @@
       .tool {
         align-self: flex-start;
         font-family: "IBM Plex Mono", monospace;
-        font-size: 11px;
+        font-size: 10.5px;
         color: var(--mark);
-        border: 1px solid rgba(214, 242, 92, 0.25);
+        border: 1px solid rgba(214, 242, 92, 0.28);
         border-radius: 8px;
-        padding: 7px 10px;
-        background: rgba(214, 242, 92, 0.06);
+        padding: 6px 9px;
+        background: rgba(214, 242, 92, 0.07);
       }
       .composer {
-        margin: 0 12px 14px;
+        margin: 0 12px 12px;
         border: 1px solid rgba(214, 242, 92, 0.35);
-        border-radius: 16px;
-        padding: 12px;
+        border-radius: 14px;
+        padding: 10px;
         background: rgba(11, 15, 13, 0.65);
-        box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.08);
+        box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.07);
       }
       .composer .ph {
         color: var(--fog);
-        font-size: 13px;
-        min-height: 40px;
+        font-size: 12px;
+        min-height: 28px;
       }
       .composer .row {
         display: flex;
         justify-content: flex-end;
-        margin-top: 8px;
       }
       .send {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: var(--mark);
         color: #12160f;
         display: grid;
         place-items: center;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 13px;
       }
+
+      /* Scene: inspect — AX tree + console */
+      .scene-inspect .page { padding: 24px 28px; }
+      .ax {
+        position: relative;
+        margin-top: 18px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #2a332c;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid #d5ddd3;
+        border-radius: 12px;
+        padding: 14px 16px;
+        max-width: 440px;
+      }
+      .ax .hi { color: #0b0f0d; font-weight: 600; background: rgba(214, 242, 92, 0.55); padding: 0 3px; border-radius: 3px; }
+      .ax .dim { color: #7a867c; }
+      .stats {
+        position: relative;
+        margin-top: 14px;
+        display: flex;
+        gap: 8px;
+      }
+      .stat {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .stat strong { color: var(--mark); font-weight: 600; }
+
+      /* Scene: private — settings */
+      .scene-private .stage {
+        grid-template-columns: 1fr 420px;
+      }
+      .settings {
+        padding: 18px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .settings h3 {
+        font-family: Syne, sans-serif;
+        font-size: 16px;
+        letter-spacing: -0.03em;
+      }
+      .settings .hint {
+        font-size: 12px;
+        color: var(--fog);
+        line-height: 1.4;
+        margin-top: -4px;
+      }
+      .sfield {
+        display: grid;
+        gap: 5px;
+      }
+      .sfield label {
+        font-size: 11px;
+        color: var(--fog);
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .sfield .box {
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: rgba(11, 15, 13, 0.55);
+        font-size: 13px;
+      }
+      .sfield .box.mark {
+        border-color: rgba(214, 242, 92, 0.4);
+        box-shadow: 0 0 0 3px rgba(214, 242, 92, 0.08);
+      }
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .badge {
+        font-size: 11px;
+        font-family: "IBM Plex Mono", monospace;
+        padding: 5px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(214, 242, 92, 0.3);
+        color: var(--mark);
+        background: rgba(214, 242, 92, 0.07);
+      }
+      .privacy-card {
+        position: relative;
+        margin-top: 22px;
+        max-width: 420px;
+        padding: 18px 18px 16px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1.5px solid #d5ddd3;
+        box-shadow: 0 12px 32px rgba(11, 15, 13, 0.08);
+      }
+      .privacy-card h4 {
+        font-family: Syne, sans-serif;
+        font-size: 18px;
+        letter-spacing: -0.03em;
+        margin-bottom: 8px;
+      }
+      .privacy-card ul {
+        list-style: none;
+        display: grid;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--page-mute);
+      }
+      .privacy-card li::before {
+        content: "✓";
+        color: #6a8a12;
+        font-weight: 700;
+        margin-right: 8px;
+      }
+      .privacy-card .lock {
+        position: absolute;
+        top: -12px;
+        right: 16px;
+        background: var(--mark);
+        color: var(--ink);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 9px;
+        border-radius: 999px;
+      }
+
+      /* Hide non-active scenes */
+      .scene { display: none; }
+      body[data-scene="automate"] .scene-automate,
+      body[data-scene="inspect"] .scene-inspect,
+      body[data-scene="private"] .scene-private { display: block; }
+      body[data-scene="automate"] .scene-automate .stage,
+      body[data-scene="inspect"] .scene-inspect .stage,
+      body[data-scene="private"] .scene-private .stage { display: grid; }
+
+      /* Compact 640×400 */
+      body.size-640 .caption { padding: 18px 22px 0; gap: 4px; max-width: 100%; }
+      body.size-640 .eyebrow { font-size: 9px; gap: 6px; }
+      body.size-640 .eyebrow::before { width: 12px; }
+      body.size-640 .caption h1 { font-size: 22px; }
+      body.size-640 .caption p,
+      body.size-640 .caption .pills,
+      body.size-640 .callout { display: none; }
+      body.size-640 .stage {
+        left: 18px; right: 18px; bottom: 14px; top: 78px;
+        grid-template-columns: 1fr 210px;
+        border-radius: 12px;
+      }
+      body.size-640 .chrome { height: 26px; padding: 0 10px; }
+      body.size-640 .dot { width: 7px; height: 7px; }
+      body.size-640 .omnibox { height: 16px; font-size: 9px; max-width: 200px; }
+      body.size-640 .page { padding: 16px 16px; }
+      body.size-640 .page-kicker { font-size: 9px; margin-bottom: 8px; }
+      body.size-640 .page h2 { font-size: 18px; margin-bottom: 6px; }
+      body.size-640 .page .lead { font-size: 11px; }
+      body.size-640 .form { margin-top: 12px; gap: 6px; max-width: 200px; }
+      body.size-640 .label { font-size: 9px; }
+      body.size-640 .field { padding: 7px 9px; font-size: 11px; border-radius: 7px; }
+      body.size-640 .pay { font-size: 11px; padding: 7px 12px; }
+      body.size-640 .cursor { left: 150px; top: 168px; transform: scale(0.75); }
+      body.size-640 .side-head { height: 34px; font-size: 12px; padding: 0 10px; }
+      body.size-640 .side-head img { width: 16px; height: 16px; }
+      body.size-640 .bound { height: 24px; font-size: 9px; padding: 0 10px; }
+      body.size-640 .chat { padding: 8px; gap: 6px; }
+      body.size-640 .bubble { font-size: 10px; padding: 6px 8px; border-radius: 8px; }
+      body.size-640 .tool { font-size: 8.5px; padding: 4px 6px; }
+      body.size-640 .assistant { display: none; }
+      body.size-640 .composer { margin: 0 8px 8px; padding: 7px; border-radius: 10px; }
+      body.size-640 .composer .ph { font-size: 9px; min-height: 16px; }
+      body.size-640 .send { width: 20px; height: 20px; font-size: 10px; }
+      body.size-640.scene-private .stage,
+      body.size-640[data-scene="private"] .stage { grid-template-columns: 1fr 240px; }
+      body.size-640 .privacy-card { margin-top: 10px; padding: 12px; }
+      body.size-640 .privacy-card h4 { font-size: 13px; }
+      body.size-640 .privacy-card ul { font-size: 10px; gap: 5px; }
+      body.size-640 .privacy-card .lock { font-size: 9px; top: -10px; }
+      body.size-640 .settings { padding: 10px; gap: 8px; }
+      body.size-640 .settings h3 { font-size: 13px; }
+      body.size-640 .settings .hint { font-size: 10px; }
+      body.size-640 .sfield .box { font-size: 11px; padding: 7px 9px; }
+      body.size-640 .badge { font-size: 9px; padding: 3px 7px; }
+      body.size-640 .ax { font-size: 9px; padding: 10px; margin-top: 10px; max-width: 100%; }
+      body.size-640 .stats { margin-top: 8px; }
+      body.size-640 .stat { font-size: 9px; padding: 5px 7px; }
+
+      /* Chinese typography */
+      body[data-lang="zh"] {
+        font-family: "Noto Sans SC", "Public Sans", sans-serif;
+      }
+      body[data-lang="zh"] .caption h1 {
+        font-family: "Noto Sans SC", sans-serif;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        font-size: 40px;
+      }
+      body[data-lang="zh"] .page h2,
+      body[data-lang="zh"] .side-head,
+      body[data-lang="zh"] .settings h3,
+      body[data-lang="zh"] .privacy-card h4 {
+        font-family: "Noto Sans SC", sans-serif;
+        letter-spacing: -0.02em;
+      }
+      body[data-lang="zh"] .caption p { font-size: 16px; }
+      body.size-640[data-lang="zh"] .caption h1 { font-size: 20px; }
     </style>
   </head>
-  <body>
-    <div class="frame">
-      <section class="page">
-        <div class="url">checkout.example / pay</div>
-        <h1>Order summary</h1>
-        <p class="lead">Complete payment to confirm your seat. Total due today: $48.00</p>
-        <div class="form">
-          <div class="field">you@studio.dev</div>
-          <div class="field active">•••• •••• •••• 4242</div>
-          <button class="pay">Pay now</button>
+  <body data-scene="automate" data-lang="en">
+    <!-- Scene 1: Automate -->
+    <div class="shot scene scene-automate">
+      <div class="grain"></div>
+      <header class="caption">
+        <div class="eyebrow" data-i18n="a.eyebrow">01 · Automate</div>
+        <h1 data-i18n="a.title">One prompt. Real clicks on the page.</h1>
+        <p data-i18n="a.lead">Side-panel AI that fills forms, clicks buttons, and navigates — through CDP, on the tab you’re looking at.</p>
+        <div class="pills">
+          <span class="pill" data-i18n-html="a.pill1"><em>fill</em> · textbox “Card”</span>
+          <span class="pill" data-i18n-html="a.pill2"><em>click</em> · button “Pay now”</span>
+          <span class="pill">⌘/Ctrl + Shift + K</span>
         </div>
-        <div class="cursor" aria-hidden="true"></div>
-      </section>
-      <aside class="side">
-        <div class="side-head">
-          <img src="../public/icons/icon128.png" alt="" />
-          Pagehand
+      </header>
+      <div class="stage">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <div class="omnibox"><span>●</span>checkout.example/pay</div>
         </div>
-        <div class="bound"><span class="dot"></span> Bound · checkout.example</div>
-        <div class="chat">
-          <div class="bubble user">Fill in a test card and click Pay now.</div>
-          <div class="tool">take_snapshot → 24 nodes</div>
-          <div class="tool">fill · textbox “Card”</div>
-          <div class="tool">click · button “Pay now”</div>
-          <div class="bubble assistant">
-            Card field is filled. Clicking <strong>Pay now</strong> next —
-            watch the page for the confirmation state.
+        <section class="page">
+          <div class="page-kicker" data-i18n="a.kicker">Checkout · Step 2 of 2</div>
+          <h2 data-i18n="a.pageTitle">Order summary</h2>
+          <p class="lead" data-i18n-html="a.pageLead">Complete payment to confirm your seat. Total due today: <strong>$48.00</strong></p>
+          <div class="form">
+            <div class="label" data-i18n="a.email">Email</div>
+            <div class="field">you@studio.dev</div>
+            <div class="label" data-i18n="a.card">Card</div>
+            <div class="field active">•••• •••• •••• 4242</div>
+            <button class="pay" data-i18n="a.pay">Pay now</button>
           </div>
-        </div>
-        <div class="composer">
-          <div class="ph">Ask anything — @ to reference a tab</div>
-          <div class="row"><div class="send">↑</div></div>
-        </div>
-      </aside>
+          <div class="cursor" aria-hidden="true"></div>
+          <div class="callout" data-i18n="a.callout">AI is typing here</div>
+        </section>
+        <aside class="side">
+          <div class="side-head">
+            <img src="../public/icons/icon128.png" alt="" />
+            Pagehand
+          </div>
+          <div class="bound"><span class="live"></span> <span data-i18n="a.bound">Bound · checkout.example</span></div>
+          <div class="chat">
+            <div class="bubble user" data-i18n="a.user">Fill in a test card and click Pay now.</div>
+            <div class="tool">take_snapshot → 24 nodes</div>
+            <div class="tool" data-i18n="a.toolFill">fill · textbox “Card”</div>
+            <div class="tool" data-i18n="a.toolClick">click · button “Pay now”</div>
+            <div class="bubble assistant" data-i18n-html="a.assistant">
+              Card filled. Clicking <strong>Pay now</strong> next — watch the page for confirmation.
+            </div>
+          </div>
+          <div class="composer">
+            <div class="ph" data-i18n="a.ph">Ask anything — @ to reference a tab</div>
+            <div class="row"><div class="send">↑</div></div>
+          </div>
+        </aside>
+      </div>
     </div>
+
+    <!-- Scene 2: Inspect -->
+    <div class="shot scene scene-inspect">
+      <div class="grain"></div>
+      <header class="caption">
+        <div class="eyebrow" data-i18n="i.eyebrow">02 · Read the page</div>
+        <h1 data-i18n="i.title">Sees the page like DevTools does.</h1>
+        <p data-i18n="i.lead">Accessibility tree, console, and network — same CDP surface Puppeteer uses. Not a brittle DOM scraper.</p>
+        <div class="pills">
+          <span class="pill"><em>take_snapshot</em></span>
+          <span class="pill"><em>list_console_messages</em></span>
+          <span class="pill"><em>list_network_requests</em></span>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <div class="omnibox"><span>●</span>docs.example/pricing</div>
+        </div>
+        <section class="page">
+          <div class="page-kicker" data-i18n="i.kicker">Accessibility tree</div>
+          <h2 data-i18n="i.pageTitle">What the model sees</h2>
+          <p class="lead" data-i18n="i.pageLead">Structured nodes with roles — clickable, fillable, and named.</p>
+          <pre class="ax" data-i18n-html="i.ax"><span class="dim">RootWebArea "Pricing"</span>
+  banner
+    link "Docs"
+  main
+    <span class="hi">heading "Pro · $48/mo"</span>
+    StaticText "Unlimited seats"
+    form
+      <span class="hi">textbox "Email" ← focus</span>
+      button "Start trial"
+  complementary
+    StaticText "Console · 1 error"
+    StaticText "Network · 12 req"</pre>
+          <div class="stats">
+            <div class="stat" data-i18n-html="i.stat1">Console <strong>1 error</strong></div>
+            <div class="stat" data-i18n-html="i.stat2">Network <strong>12 req</strong></div>
+            <div class="stat" data-i18n-html="i.stat3">AX nodes <strong>24</strong></div>
+          </div>
+        </section>
+        <aside class="side">
+          <div class="side-head">
+            <img src="../public/icons/icon128.png" alt="" />
+            Pagehand
+          </div>
+          <div class="bound"><span class="live"></span> <span data-i18n="i.bound">Bound · docs.example</span></div>
+          <div class="chat">
+            <div class="bubble user" data-i18n="i.user">What’s broken on this page?</div>
+            <div class="tool">take_snapshot → 24 nodes</div>
+            <div class="tool">list_console_messages → 1 error</div>
+            <div class="bubble assistant" data-i18n-html="i.assistant">
+              There’s a TypeError in <code>checkout.js:42</code> when the email field blurs. Want me to open the request that failed?
+            </div>
+          </div>
+          <div class="composer">
+            <div class="ph" data-i18n="i.ph">Ask anything — @ to reference a tab</div>
+            <div class="row"><div class="send">↑</div></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Scene 3: Private / BYO -->
+    <div class="shot scene scene-private">
+      <div class="grain"></div>
+      <header class="caption">
+        <div class="eyebrow" data-i18n="p.eyebrow">03 · Your keys</div>
+        <h1 data-i18n="p.title">BYO API key. No Pagehand cloud.</h1>
+        <p data-i18n="p.lead">Keys stay in chrome.storage.local. Chats stay on your machine. Requests go only to the provider you pick.</p>
+        <div class="pills">
+          <span class="pill">DeepSeek · OpenAI · Anthropic</span>
+          <span class="pill" data-i18n="p.pill2">OpenAI-compatible</span>
+          <span class="pill" data-i18n-html="p.pill3"><em>no telemetry</em></span>
+        </div>
+      </header>
+      <div class="stage">
+        <div class="chrome">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <div class="omnibox"><span>●</span>chrome-extension://…/sidepanel</div>
+        </div>
+        <section class="page">
+          <div class="page-kicker" data-i18n="p.kicker">Privacy model</div>
+          <h2 data-i18n="p.pageTitle">Nothing leaves your browser except model calls.</h2>
+          <p class="lead" data-i18n="p.pageLead">Pagehand has no accounts, no proxy, and no analytics backend.</p>
+          <div class="privacy-card">
+            <div class="lock" data-i18n="p.lock">local only</div>
+            <h4 data-i18n="p.cardTitle">What stays on device</h4>
+            <ul>
+              <li data-i18n="p.li1">API keys in chrome.storage.local</li>
+              <li data-i18n="p.li2">Chat history in IndexedDB</li>
+              <li data-i18n="p.li3">Screenshots attached to turns</li>
+            </ul>
+          </div>
+        </section>
+        <aside class="side">
+          <div class="side-head">
+            <img src="../public/icons/icon128.png" alt="" />
+            Pagehand
+          </div>
+          <div class="bound"><span class="live"></span> <span data-i18n="p.bound">Settings</span></div>
+          <div class="settings">
+            <h3 data-i18n="p.settingsTitle">Model provider</h3>
+            <p class="hint" data-i18n="p.settingsHint">Bring your own key. Pagehand never sees it.</p>
+            <div class="sfield">
+              <label data-i18n="p.provider">Provider</label>
+              <div class="box mark">DeepSeek</div>
+            </div>
+            <div class="sfield">
+              <label data-i18n="p.model">Model</label>
+              <div class="box">deepseek-v4-flash</div>
+            </div>
+            <div class="sfield">
+              <label data-i18n="p.apikey">API key</label>
+              <div class="box">sk-••••••••••••••••</div>
+            </div>
+            <div class="badge-row">
+              <span class="badge">OpenAI</span>
+              <span class="badge">Anthropic</span>
+              <span class="badge" data-i18n="p.compat">Compatible URL</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <script>
+      const ZH = {
+        "a.eyebrow": "01 · 自动操作",
+        "a.title": "一句话指令，真实点击页面。",
+        "a.lead": "侧栏 AI 填写表单、点击按钮、跳转页面——通过 CDP，操作你正在看的标签页。",
+        "a.pill1": "<em>fill</em> · 文本框「卡号」",
+        "a.pill2": "<em>click</em> · 按钮「立即支付」",
+        "a.kicker": "结账 · 第 2 / 2 步",
+        "a.pageTitle": "订单摘要",
+        "a.pageLead": "完成支付以确认席位。今日应付：<strong>$48.00</strong>",
+        "a.email": "邮箱",
+        "a.card": "卡号",
+        "a.pay": "立即支付",
+        "a.callout": "AI 正在输入",
+        "a.bound": "已绑定 · checkout.example",
+        "a.user": "填入测试卡号并点击「立即支付」。",
+        "a.toolFill": "fill · 文本框「卡号」",
+        "a.toolClick": "click · 按钮「立即支付」",
+        "a.assistant": "卡号已填好。接下来点击<strong>立即支付</strong>——留意页面确认状态。",
+        "a.ph": "随便问 —— 用 @ 引用标签页",
+
+        "i.eyebrow": "02 · 读懂页面",
+        "i.title": "像 DevTools 一样看见页面。",
+        "i.lead": "无障碍树、控制台与网络——与 Puppeteer 同一套 CDP，不是脆弱的 DOM 抓取。",
+        "i.kicker": "无障碍树",
+        "i.pageTitle": "模型看到的内容",
+        "i.pageLead": "带角色的结构化节点——可点、可填、有名称。",
+        "i.ax": `<span class="dim">RootWebArea "定价"</span>
+  banner
+    link "文档"
+  main
+    <span class="hi">heading "专业版 · $48/月"</span>
+    StaticText "不限席位"
+    form
+      <span class="hi">textbox "邮箱" ← 焦点</span>
+      button "开始试用"
+  complementary
+    StaticText "控制台 · 1 错误"
+    StaticText "网络 · 12 请求"`,
+        "i.stat1": "控制台 <strong>1 错误</strong>",
+        "i.stat2": "网络 <strong>12 请求</strong>",
+        "i.stat3": "AX 节点 <strong>24</strong>",
+        "i.bound": "已绑定 · docs.example",
+        "i.user": "这个页面哪里坏了？",
+        "i.assistant": "邮箱失焦时 <code>checkout.js:42</code> 有 TypeError。要我打开失败的那条请求吗？",
+        "i.ph": "随便问 —— 用 @ 引用标签页",
+
+        "p.eyebrow": "03 · 自备密钥",
+        "p.title": "自备 API Key。没有 Pagehand 云端。",
+        "p.lead": "密钥存在 chrome.storage.local。对话留在本机。请求只发往你选择的服务商。",
+        "p.pill2": "OpenAI 兼容接口",
+        "p.pill3": "<em>无遥测</em>",
+        "p.kicker": "隐私模型",
+        "p.pageTitle": "除了模型请求，什么都不会离开浏览器。",
+        "p.pageLead": "Pagehand 没有账号、代理或分析后端。",
+        "p.lock": "仅本地",
+        "p.cardTitle": "留在本机的内容",
+        "p.li1": "API Key 存在 chrome.storage.local",
+        "p.li2": "对话历史在 IndexedDB",
+        "p.li3": "截图附在对话轮次中",
+        "p.bound": "设置",
+        "p.settingsTitle": "模型服务商",
+        "p.settingsHint": "自备密钥。Pagehand 永远看不到它。",
+        "p.provider": "服务商",
+        "p.model": "模型",
+        "p.apikey": "API 密钥",
+        "p.compat": "兼容接口",
+      };
+
+      const params = new URLSearchParams(location.search);
+      const scene = params.get("scene") || "automate";
+      const size = params.get("size") || "1280";
+      const lang = params.get("lang") === "zh" ? "zh" : "en";
+      document.body.dataset.scene = scene;
+      document.body.dataset.lang = lang;
+      document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+      if (size === "640") document.body.classList.add("size-640");
+      document.documentElement.style.width = size === "640" ? "640px" : "1280px";
+      document.documentElement.style.height = size === "640" ? "400px" : "800px";
+
+      if (lang === "zh") {
+        for (const el of document.querySelectorAll("[data-i18n]")) {
+          const key = el.getAttribute("data-i18n");
+          if (ZH[key] != null) el.textContent = ZH[key];
+        }
+        for (const el of document.querySelectorAll("[data-i18n-html]")) {
+          const key = el.getAttribute("data-i18n-html");
+          if (ZH[key] != null) el.innerHTML = ZH[key];
+        }
+      }
+    </script>
   </body>
 </html>

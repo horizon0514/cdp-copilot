@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "pack": "npm run build && cd dist && zip -r ../pagehand.zip .",
+    "pack": "npm run build && rm -f pagehand.zip && cd dist && zip -r ../pagehand.zip .",
+    "store:shots": "node store/render-screenshots.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src e2e",
     "test": "vitest run",
