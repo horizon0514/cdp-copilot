@@ -28,7 +28,7 @@ interface CollectedPage {
 /**
  * innerText, not the AX tree: for reading, layout text is denser and closer to
  * what a human sees. Links ride along separately because innerText drops
- * hrefs, and collection tasks usually need them (profile URLs, post URLs).
+ * hrefs, which extractions often need.
  */
 const COLLECT_PAGE = `() => {
   const links = [];
@@ -88,16 +88,15 @@ export function parseModelJson(raw: string): unknown | undefined {
 export const extract_content = tool({
   description:
     'Reads the ENTIRE visible page text in one call and extracts what you ask for as compact JSON. ' +
-    'Far cheaper than take_snapshot for reading and collecting (comments, listings, tables, profiles) — ' +
-    'the raw page never enters your context, only the result does. Reads what is currently rendered: ' +
-    'scroll or expand first if more content must load (evaluate_script with window.scrollBy). ' +
-    'Use take_snapshot only when you need uids to click or fill.',
+    'Far cheaper than take_snapshot for reading — the raw page never enters your context, only the ' +
+    'result does. Reads what is currently rendered: scroll or expand first (via evaluate_script) if ' +
+    'more content must load. Use take_snapshot only when you need uids to click or fill.',
   inputSchema: z.object({
     instruction: z
       .string()
       .describe(
-        'What to extract and the JSON shape wanted, e.g. "all comments as [{user, text, hint}] where ' +
-          'the text suggests the commenter wants to sell an apartment; include the profile link if present"',
+        'What to extract and the JSON shape wanted, e.g. "table rows as [{name, price, url}] matching ' +
+          'the stated criteria; omit rows that do not qualify"',
       ),
   }),
   execute: async ({ instruction }, { abortSignal }) => {

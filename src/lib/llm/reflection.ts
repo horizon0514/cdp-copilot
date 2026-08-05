@@ -17,9 +17,9 @@ const STALL_REPEATS = 3;
 
 const CHECKPOINT =
   'Checkpoint — reflect before continuing: look at your task ledger and judge whether the last several ' +
-  'steps actually advanced the goal and whether saved findings still meet the original acceptance criteria ' +
-  'with direct evidence rather than inference. Remove weak findings. If progress has stalled, change strategy ' +
-  'rather than repeating variations of the same action, and record any dead end through update_task_ledger.';
+  'steps actually advanced the goal and whether saved findings still meet it with direct evidence. ' +
+  'Remove weak findings. If progress has stalled, change strategy rather than repeating variations of ' +
+  'the same action, and record any dead end through update_task_ledger.';
 
 const STALL =
   'You appear to be repeating the same action without new progress. Stop and rethink: the current approach ' +

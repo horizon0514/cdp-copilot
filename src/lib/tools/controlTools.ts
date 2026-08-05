@@ -99,8 +99,8 @@ export const control_task = tool({
   description:
     'Controls task execution through one typed action. Use complete only when the whole user goal passes ' +
     'its success criteria. Use start_episode when a bounded sub-task should run in a fresh context. Inside ' +
-    'an episode, use finish_episode with done, partial, or blocked plus a handoff note. For collection tasks, ' +
-    'audit evidence and remove invalid findings before completing; quantity never compensates for quality.',
+    'an episode, use finish_episode with done, partial, or blocked plus a handoff note. Before completing, ' +
+    'drop findings that no longer meet the goal; quantity never compensates for quality.',
   inputSchema: taskControlObjectSchema,
   execute: async (raw) => {
     const action = taskControlSchema.parse(raw);

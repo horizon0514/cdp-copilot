@@ -212,27 +212,27 @@ describe('streamAgentEvents — goal-driven stop', () => {
 });
 
 describe('streamAgentEvents — extra instructions (task-ledger digest)', () => {
-  it('requires evidence-based qualification and a final audit for collection tasks', async () => {
+  it('requires evidence-based findings and live plan tracking in the system prompt', async () => {
     const prompts: string[] = [];
     const model = scriptedModel(
       [{ do: 'text', text: 'done' }],
       (prompt) => prompts.push(JSON.stringify(prompt)),
     );
 
-    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'collect five sellers' }], {
+    for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'collect five items' }], {
       toolset,
       maxSteps: 2,
     })) {
       void _;
     }
 
-    expect(prompts[0]).toContain('explicit acceptance and rejection');
-    expect(prompts[0]).toContain('having sold something in the past does not show a current desire');
-    expect(prompts[0]).toContain('audit every saved finding');
+    expect(prompts[0]).toContain('require direct evidence');
+    expect(prompts[0]).toContain('do not stretch ambiguous');
     expect(prompts[0]).toContain('update_task_ledger');
     expect(prompts[0]).toContain('set_plan_status');
     expect(prompts[0]).toContain('Treat the plan as live work tracking');
-    expect(prompts[0]).toContain('Never lower the criteria or pad');
+    expect(prompts[0]).toContain('evaluate_script, when structure identifies');
+    expect(prompts[0]).toContain('extract_content, when meaning identifies');
   });
 
   it('appends the digest to the system prompt on every step, staying current', async () => {

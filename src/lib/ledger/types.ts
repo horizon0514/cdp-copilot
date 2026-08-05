@@ -18,7 +18,7 @@ export interface Finding {
   summary: string;
   /** Direct quote or observed value that proves this result meets the goal. */
   evidence?: string;
-  /** Why that evidence satisfies the task's acceptance criteria. */
+  /** Why that evidence meets the task's criteria. */
   rationale?: string;
   /** Optional structured payload worth keeping verbatim. */
   data?: Record<string, unknown>;

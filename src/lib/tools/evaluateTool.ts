@@ -11,19 +11,11 @@ interface EvaluateResult {
 export const evaluate_script = tool({
   description:
     'Runs a JavaScript function inside the current page and returns its JSON-serializable result. ' +
-    'This is a program, not just an expression: the function may be async, loop, await, click things, ' +
-    'and read the DOM. Do the WHOLE job in one script rather than stepping out between actions — ' +
-    'page through a list, scroll and wait for lazy content, collect, de-duplicate and filter, then ' +
-    'return only the finished result. One script that walks five pages costs one step; five rounds of ' +
-    'click-then-read cost ten. ' +
-    'Collecting: "() => [...document.querySelectorAll(\'.item\')].map(el => ({ ' +
-    'name: el.querySelector(\'.name\').innerText.trim(), href: el.querySelector(\'a\')?.href }))". ' +
-    'Scrolling a lazy feed to the end: "async () => { let last = 0; for (let i = 0; i < 20; i++) { ' +
-    'window.scrollTo(0, document.body.scrollHeight); await new Promise(r => setTimeout(r, 400)); ' +
-    'const n = document.querySelectorAll(\'.comment\').length; if (n === last) break; last = n; } ' +
-    'return last; }". ' +
-    'The result is capped, so select and shrink inside the script — return the few fields you need, ' +
-    'never whole elements or the full page text.',
+    'The function may be async: it can loop, await, click, scroll, and read the DOM. Prefer doing a ' +
+    'multi-step page job in one script instead of leaving and re-entering the agent loop between each ' +
+    'action — one script that paginates or waits for lazy content costs one step. The result is capped, ' +
+    'so select and shrink inside the script; return only the fields you need, never whole elements or ' +
+    'the full page text.',
   inputSchema: z.object({
     function: z
       .string()

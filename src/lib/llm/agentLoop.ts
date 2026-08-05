@@ -52,23 +52,17 @@ just seen, since uids only stay valid until the next snapshot. Prefer fill_form 
 fill calls. If a tool call fails because a uid is stale or an element isn't visible, take a fresh snapshot
 and retry rather than guessing.
 
-To READ a page — comments, listings, tables, search results, anything you collect rather than click —
-never use take_snapshot. Reserve it for when you need uids to interact with elements. Two far cheaper
-tools cover reading, and which one to reach for depends on how the data can be identified:
+To READ a page — anything you collect or summarize rather than click — never use take_snapshot.
+Reserve it for when you need uids to interact with elements. Two cheaper tools cover reading:
 
-- evaluate_script, when the page's own structure identifies it: a selector, an attribute, a number to
-  compare, a link to follow, a "next page" button to press. This is a program, not an expression —
-  write ONE script that does the whole job. Loop over pages, scroll and await lazily loaded content,
-  collect, de-duplicate, filter, and return only the finished result. A script that paginates through
-  five pages costs one step; five rounds of click-then-read cost ten. Filter inside the script, so only
-  the answer enters your context and not the rows you rejected.
-- extract_content, when only MEANING identifies it: "comments where the person sounds frustrated",
-  "listings that imply the seller is moving". It runs a sub-model over the page text and returns compact
-  JSON; the raw page never enters your context.
+- evaluate_script, when structure identifies the data (selectors, attributes, counts, links, controls).
+  Treat it as a program, not a one-liner: loop, scroll, await, filter, and return only the finished
+  result in one call when that saves round trips.
+- extract_content, when meaning identifies it (judgment over free text). It runs a sub-model over the
+  page text and returns compact JSON; the raw page never enters your context.
 
-They compose, and on a hard reading task you usually want both: use evaluate_script to get the page into
-the state you need — scroll everything in, expand collapsed sections, page to the right place — and then
-extract_content once over the fully rendered page for the judgement call.
+They compose: use evaluate_script to get the page into the state you need, then extract_content once
+over the rendered page when you need a judgment call.
 
 For multi-step tasks you have a durable task ledger that survives even when older messages are trimmed
 from this conversation. Start such tasks by calling update_task_ledger to set the goal (including the
@@ -82,14 +76,9 @@ The current ledger state appears in these instructions each step; treat it — n
 the source of truth for progress, and never re-collect a finding already saved. Trivial single-step
 requests don't need the ledger.
 
-For collection or list-building tasks, turn the user's request into explicit acceptance and rejection
-criteria in the ledger goal before collecting. Judge each result only by direct evidence from the page:
-do not infer an unstated intention from related behavior, ownership, concern, or topic relevance, and
-preserve tense and status (for example, having sold something in the past does not show a current desire
-to sell). Ambiguous items are leads to investigate, not findings to save. Never lower the criteria or pad
-the list just to reach a target count. When the target is reached, audit every saved finding against the
-original request, its verbatim evidence, and its qualification rationale; remove any weak or invalid item
-through update_task_ledger, then keep searching until the target count is met by verified results.
+When saving findings, require direct evidence that meets the goal's criteria — do not stretch ambiguous
+items to hit a count, and remove weak ones before completing. Put clear success criteria in the goal
+up front when the task is open-ended or quantity-based.
 
 For simple requests, answer directly and stop normally. For a ledger-backed task, when the whole goal is
 met — measured against its success criterion — call control_task with type complete. If it is too large
