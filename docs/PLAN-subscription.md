@@ -105,19 +105,38 @@ for the proxy and it survives the router change intact.
 
 Recommendation: ship **hosted-only for Free**; unlock BYOK on Pro so privacy-sensitive users can keep keys off our servers.
 
-> **Unresolved — this recommendation is probably backwards for mainland China.**
-> The hosted chain is extension → our API → OpenRouter → provider; every hop
-> after the first is overseas, so a mainland user without a VPN cannot use
-> hosted mode at all, no matter where we host. BYOK + DeepSeek (domestic,
-> directly reachable) is their *only* working path — which is exactly why
-> `DEFAULT_PROVIDER` is `deepseek` today. Putting BYOK behind Pro tells those
-> users the extension installs but does not run. Either open BYOK on Free, or
-> decide explicitly that hosted mode targets non-China markets only.
+> **Mainland China — corrected.** An earlier revision of this section claimed a
+> mainland user could not use hosted mode at all, on the grounds that every hop
+> after the extension is overseas. That reasoning was wrong: the *browser*
+> crosses the border exactly once, to `pagehand.app`. Everything past that —
+> OpenRouter, the provider — is server-to-server inside a US datacentre and
+> never touches the GFW. If the first hop works, hosted works.
 >
-> Note also that Vercel and Cloudflare are equivalent here — neither has
-> mainland PoPs on non-enterprise plans, and both default domains
-> (`*.vercel.app`, `*.workers.dev`) have a history of being blocked. Bind a
-> custom domain either way.
+> So the open question is narrower than it looked, and it is about the first hop
+> only:
+>
+> - **Reachability.** Vercel has no mainland PoP; requests land on the nearest
+>   Anycast edge (`hkg1` in practice). That usually works and is not guaranteed
+>   — it varies by carrier and time of day, so it is a reliability question, not
+>   a yes/no one. A custom domain avoids the separate problem of `*.vercel.app`
+>   being DNS-poisoned. Measure from an unproxied mainland network; a developer
+>   machine behind a proxy proves nothing.
+> - **Latency, which is the bigger risk.** One turn is up to 100 *sequential*
+>   requests. Each pays China → edge → function region → OpenRouter → provider
+>   and back. Server-side alone we measured 3.2s and 4.5s per step in §3.2.2;
+>   adding a transpacific round trip to each is what decides whether hosted is
+>   usable there, not whether it connects.
+> - **Function region is a lever with a trap.** Moving functions to `hkg1` cuts
+>   that latency, but OpenRouter gates models on the *caller's* region — the
+>   same mechanism that returned "This model is not available in your region"
+>   for OpenAI and Anthropic during Phase 1a testing. A Hong Kong function may
+>   inherit a smaller catalogue. Decide this deliberately rather than by
+>   default.
+>
+> BYOK + DeepSeek stays the better mainland experience regardless: it is a
+> domestic connection that never crosses the border. That is an argument for
+> keeping BYOK available on Free, but a weaker one than "hosted cannot work
+> there" — because hosted can.
 
 ### 3.2 Plans (starting point — tune before launch)
 
