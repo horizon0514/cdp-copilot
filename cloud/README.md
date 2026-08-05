@@ -7,6 +7,26 @@ account pages, billing, and the hosted model proxy. Plan:
 Separate npm project from the extension at the repo root, with its own
 `package.json`, `node_modules`, and Vercel project (Root Directory `cloud`).
 
+## Build settings live in the Vercel dashboard, not here
+
+A `vercel.json` will **not** override them — project settings win, which is the
+opposite of what you might expect. The project predates this app and was set up
+to serve static HTML, so its commands were explicitly blank; a blank command
+means "run nothing", and the deployment then ships an empty output directory
+that 404s on every route while still reporting success.
+
+If deploys start 404ing, check these first
+(Settings → Build & Deployment) — a build log with no `npm install` line and a
+sub-100ms duration is the signature:
+
+| Setting | Value |
+| --- | --- |
+| Framework Preset | Next.js |
+| Root Directory | `cloud` |
+| Install Command | `npm install` |
+| Build Command | `next build` |
+| Output Directory | `.next` |
+
 The marketing site was four static HTML files under `website/` until it moved in
 here. Merging them means `/pricing` and `/account` inherit the same
 `app/globals.css` the landing page uses, rather than becoming a second design.
