@@ -57,14 +57,21 @@ function send(rt: ChromeRuntime, id: string, session: Session): Promise<boolean>
   });
 }
 
-export type DeliveryResult = 'delivered' | 'no-extension';
+/**
+ * The two failures look identical to a user and have opposite fixes, so they
+ * are kept apart: `unreachable` means the page has no messaging API at all —
+ * wrong browser, extension missing, or a manifest change not yet reloaded —
+ * while `id-mismatch` means messaging works and nobody answered to the ids this
+ * build knows about.
+ */
+export type DeliveryResult = 'delivered' | 'unreachable' | 'id-mismatch';
 
 export async function deliverSession(session: Session): Promise<DeliveryResult> {
   const rt = runtime();
-  if (!rt) return 'no-extension';
+  if (!rt) return 'unreachable';
 
   for (const id of extensionIds()) {
     if (await send(rt, id, session)) return 'delivered';
   }
-  return 'no-extension';
+  return 'id-mismatch';
 }

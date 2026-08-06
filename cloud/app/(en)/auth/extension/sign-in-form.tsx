@@ -19,7 +19,7 @@ import { supabaseBrowser } from '@/lib/supabase-browser';
  * serve.
  */
 
-type Phase = 'idle' | 'sending' | 'sent' | 'delivering' | 'done' | 'no-extension';
+type Phase = 'idle' | 'sending' | 'sent' | 'delivering' | 'done' | 'unreachable' | 'id-mismatch';
 
 export function SignInForm() {
   const [email, setEmail] = useState('');
@@ -42,7 +42,8 @@ export function SignInForm() {
       // Clear the tokens out of the address bar before anything can screenshot,
       // bookmark, or share it.
       history.replaceState(null, '', window.location.pathname);
-      setPhase((await deliverSession(data.session)) === 'delivered' ? 'done' : 'no-extension');
+      const delivered = await deliverSession(data.session);
+      setPhase(delivered === 'delivered' ? 'done' : delivered);
     })();
   }, []);
 
@@ -73,14 +74,27 @@ export function SignInForm() {
     );
   }
 
-  if (phase === 'no-extension') {
+  if (phase === 'unreachable') {
     return (
       <>
         <h2>Almost there</h2>
         <p>
-          Signing in worked, but this tab couldn’t reach the Pagehand extension. That happens when
-          the link is opened in a different browser or profile from the one Pagehand is installed
-          in. Open this page again in that browser.
+          Signing in worked, but this page can’t see the Pagehand extension at all. Either it isn’t
+          installed in this browser profile, or it needs reloading — a permission change only takes
+          effect after a reload at <code>chrome://extensions</code>.
+        </p>
+      </>
+    );
+  }
+
+  if (phase === 'id-mismatch') {
+    return (
+      <>
+        <h2>Almost there</h2>
+        <p>
+          Signing in worked and the extension is reachable, but its id isn’t one this site knows.
+          That happens with an unpacked build, whose id comes from the folder it was loaded from.
+          Check the id at <code>chrome://extensions</code>.
         </p>
       </>
     );

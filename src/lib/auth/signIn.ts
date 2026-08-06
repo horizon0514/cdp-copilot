@@ -1,37 +1,47 @@
+import { HOSTED_BASE_URL } from '../storage/schema';
 import { clearSession, getSession, type Session } from './session';
 
 /**
  * Sign-in, driven from the side panel.
  *
- * Opens the sign-in page in an ordinary tab and waits for the session to show
- * up in storage. The page delivers it by calling `chrome.runtime.sendMessage`,
- * which the background worker accepts because the manifest's
- * `externally_connectable` names that origin.
+ * The panel asks for the email and posts it here; the emailed link is what
+ * finally opens a tab, and that tab hands the session back through
+ * `chrome.runtime.sendMessage` — permitted because the manifest names that
+ * origin under `externally_connectable`.
  *
- * Not `chrome.identity.launchWebAuthFlow`, which would be the obvious choice:
- * it watches a window it opened for a redirect, and an emailed sign-in link
- * opens wherever the user's mail client sends it — another window entirely, or
- * another browser. The flow would sit there waiting for a navigation that
- * happens somewhere it cannot see. A plain tab has no such requirement: the
- * link can be opened from anywhere in this browser and still lands home.
+ * Notably *not* `chrome.identity.launchWebAuthFlow`, the obvious choice: it
+ * watches a window it opened for the redirect that ends the flow, and an
+ * emailed link opens wherever the mail client sends it — another window
+ * entirely. The flow would wait forever on a navigation it cannot see.
  *
- * The cost, worth stating: the link must be opened in *this* Chrome profile.
- * Reading the mail on a phone gets the user nowhere. That is the trade for
- * dropping the manual code entry, and it reverses once a custom SMTP sender
- * lets the email carry both a link and a code.
+ * The trade, worth stating plainly: a link removes any code to transcribe, but
+ * only works when opened in this Chrome profile. Reading the mail on a phone
+ * gets the user nowhere. That reverses once a custom SMTP sender lets the email
+ * carry a code as well.
  */
-
-/** Always the deployed site: `externally_connectable` cannot name localhost,
- * so a locally served sign-in page could never message the extension. */
-const SIGN_IN_URL = 'https://pagehand.app/auth/extension';
 
 /** Long enough to find the mail, read it, and click through. */
 const SIGN_IN_TIMEOUT_MS = 10 * 60 * 1000;
 
 export class SignInCancelled extends Error {}
 
-/** Resolves when a session appears in storage, or rejects on timeout/abort. */
-function awaitSession(signal: AbortSignal): Promise<Session> {
+export async function sendSignInLink(email: string): Promise<void> {
+  const res = await fetch(`${HOSTED_BASE_URL}/auth/send-link`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(body?.error?.message ?? 'Could not send the sign-in email.');
+  }
+}
+
+/**
+ * Resolves once the session lands in storage, which the background worker
+ * writes when the tab opened by the emailed link reports in.
+ */
+export function awaitSession(signal: AbortSignal): Promise<Session> {
   return new Promise((resolve, reject) => {
     const finish = (fn: () => void) => {
       chrome.storage.onChanged.removeListener(onChanged);
@@ -55,12 +65,6 @@ function awaitSession(signal: AbortSignal): Promise<Session> {
     chrome.storage.onChanged.addListener(onChanged);
     signal.addEventListener('abort', onAbort);
   });
-}
-
-export async function signIn(signal: AbortSignal): Promise<Session> {
-  const waiting = awaitSession(signal);
-  await chrome.tabs.create({ url: SIGN_IN_URL });
-  return waiting;
 }
 
 export async function signOut(): Promise<void> {
