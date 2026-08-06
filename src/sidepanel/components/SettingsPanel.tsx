@@ -22,7 +22,7 @@ import { cn } from '../lib/utils';
 /** Kept in sync with `host_permissions` in manifest.config.ts — origins listed
  * there are already granted, so asking again would raise a needless dialog. */
 const DEFAULT_HOST_ORIGINS = new Set([
-  'https://api.pagehand.app',
+  'https://pagehand.app',
   'https://api.openai.com',
   'https://api.anthropic.com',
   'https://api.deepseek.com',

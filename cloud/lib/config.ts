@@ -4,7 +4,7 @@ export const ROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 /** Sent as `HTTP-Referer` / `X-Title`, which is how OpenRouter attributes spend
  * to an app on its dashboard. Per-user attribution rides on the `user` field. */
-export const APP_URL = 'https://pagehand.vercel.app';
+export const APP_URL = 'https://pagehand.app';
 export const APP_TITLE = 'Pagehand';
 
 /** A step carrying a full a11y snapshot plus resent history is large but not

@@ -59,7 +59,7 @@ export default defineManifest({
           // Hosted mode's own endpoint: the default path must not open a
           // permission dialog on first use. Dev builds point at localhost,
           // which stays optional below.
-          'https://api.pagehand.app/*',
+          'https://pagehand.app/*',
           'https://api.deepseek.com/*',
           'https://api.openai.com/*',
           'https://api.anthropic.com/*',

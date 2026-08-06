@@ -69,7 +69,7 @@ test('attributes the call to the app and the user', async () => {
   );
 
   assert.equal(calls[0]?.headers.get('x-title'), 'Pagehand');
-  assert.equal(calls[0]?.headers.get('http-referer'), 'https://pagehand.vercel.app');
+  assert.equal(calls[0]?.headers.get('http-referer'), 'https://pagehand.app');
   assert.equal(calls[0]?.body.user, 'user-42');
 });
 

@@ -17,7 +17,7 @@ export const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
  */
 export const HOSTED_BASE_URL: string =
   import.meta.env.VITE_PAGEHAND_API_URL ??
-  (import.meta.env.DEV ? 'http://localhost:3000/api/v1' : 'https://api.pagehand.app/v1');
+  (import.meta.env.DEV ? 'http://localhost:3000/api/v1' : 'https://pagehand.app/api/v1');
 
 /** True for the hosted path only: there is no user-held key, because the whole
  * point is that the gateway credential never leaves our server. */
