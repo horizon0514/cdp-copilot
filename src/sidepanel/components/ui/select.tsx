@@ -30,6 +30,34 @@ function SelectTrigger({
   );
 }
 
+/**
+ * Icon-only trigger, for a select that is a control rather than a field.
+ *
+ * No box and no chevron: those say "this is one of the things you came here to
+ * fill in", which is exactly the claim being withdrawn. The current value lives
+ * in the menu's checkmark, so nothing is lost by not showing it — pass an
+ * `aria-label`, since the icon carries no accessible name of its own.
+ */
+function SelectIconTrigger({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
+  return (
+    <SelectPrimitive.Trigger
+      className={cn(
+        'grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-fg-tertiary outline-none transition-colors duration-200',
+        'hover:bg-surface-hover hover:text-fg focus-visible:ring-2 focus-visible:ring-accent-line',
+        'data-[state=open]:bg-surface-hover data-[state=open]:text-fg',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </SelectPrimitive.Trigger>
+  );
+}
+
 function SelectContent({
   className,
   children,
@@ -76,4 +104,4 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
   );
 }
 
-export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem };
+export { Select, SelectValue, SelectTrigger, SelectIconTrigger, SelectContent, SelectItem };

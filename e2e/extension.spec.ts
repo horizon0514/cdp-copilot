@@ -23,20 +23,39 @@ test('side panel renders without console errors', async ({ context, extensionId 
   page.on('pageerror', (e) => errors.push(e.message));
 
   await page.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`);
-  // Fresh profile opens settings first — title is localized (en / zh).
-  await expect(page.getByRole('heading', { name: /^(Settings|设置)$/ })).toBeVisible();
+  // A fresh profile opens on sign-in — heading is localized (en / zh).
+  await expect(
+    page.getByRole('heading', { name: /^(Sign in to Pagehand|登录 Pagehand)$/ }),
+  ).toBeVisible();
 
   expect(errors).toEqual([]);
 });
 
-test('shows settings first when no provider is configured', async ({ context, extensionId }) => {
+test('leads a fresh profile to sign-in, with BYOK one click away', async ({
+  context,
+  extensionId,
+}) => {
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`);
 
-  // A fresh profile has no stored key, so the panel must ask for one rather
-  // than presenting a chat box that cannot work. Prefer the textbox role so
-  // the "Show API key" toggle (same /API key/ label match) doesn't collide.
-  await expect(page.getByRole('textbox', { name: /API key|API 密钥/i })).toBeVisible();
+  // A fresh profile has no key to offer, so hosted is the only mode it can
+  // actually complete — the panel asks for an account, not a key.
+  await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Continue with email|用邮箱继续/ })).toBeVisible();
+
+  // Demoted to an icon, but an icon still owes assistive tech a name.
+  await expect(page.getByRole('combobox', { name: /Language|语言/ })).toBeVisible();
+
+  // Prefer the textbox role so the "Show API key" toggle (same /API key/ label
+  // match) doesn't collide.
+  const keyField = page.getByRole('textbox', { name: /API key|API 密钥/i });
+  await expect(keyField).toHaveCount(0);
+
+  // Weakened, not removed: anyone who wants their own key is one click away.
+  await page
+    .getByRole('button', { name: /Use your own API key instead|改用自己的 API 密钥/ })
+    .click();
+  await expect(keyField).toBeVisible();
 });
 
 test('persists provider settings to chrome.storage.local', async ({ panel }) => {
@@ -61,6 +80,28 @@ test('persists provider settings to chrome.storage.local', async ({ panel }) => 
   // Keys must never be written to synced storage.
   const synced = await panel.evaluate(() => chrome.storage.sync.get(null));
   expect(JSON.stringify(synced)).not.toContain('test-key');
+});
+
+test('refuses to send when hosted settings have no account behind them', async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`);
+  // Settings a signed-out user can plausibly be left holding: signing out, or a
+  // refresh token the server revoked, both land here.
+  await page.evaluate(() =>
+    chrome.storage.local.set({
+      'pagehand:settings': { provider: 'hosted', model: 'deepseek/deepseek-v4-flash-0731' },
+    }),
+  );
+  await page.reload();
+
+  // Said before the turn, not a minute into one.
+  await expect(page.getByText(/Signed out|未登录/)).toBeVisible();
+
+  await page.getByRole('textbox', { name: /Message|消息/ }).fill('summarize this page');
+  await expect(page.getByRole('button', { name: /^(Send|发送)$/ })).toBeDisabled();
 });
 
 test('exposes the full v1 tool set', async ({ panel }) => {

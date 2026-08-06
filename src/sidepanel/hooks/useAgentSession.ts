@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useConversationStore } from '../state/conversationStore';
 import { runAgentTurn } from '../../lib/llm/agentLoop';
-import { Settings } from '../../lib/storage/schema';
+import { isSignedIn } from '../../lib/auth/session';
+import { isHosted, Settings } from '../../lib/storage/schema';
 import { agentTabTracker } from '../../lib/pages/agentTabTracker';
 import { listPages } from '../../lib/pages/PageManager';
 import { peekMentionedTabs } from '../../lib/pages/peekMentions';
@@ -56,6 +57,16 @@ export function useAgentSession(settings: Settings | null) {
         // into a void.
         addUserMessage(toDisplayText(text));
         setMessageError(startAssistantMessage(), 'Finish setup in Settings first.');
+        return;
+      }
+
+      // The composer already blocks this — see useHostedAuth — but it decides on
+      // render and this decides on send, and a session can be revoked in
+      // between. Said here, the turn costs nothing; found in `hostedFetch`, it
+      // arrives after however many tool calls got there first.
+      if (isHosted(settings.provider) && !(await isSignedIn())) {
+        addUserMessage(toDisplayText(text));
+        setMessageError(startAssistantMessage(), 'Sign in to use the hosted model.');
         return;
       }
 

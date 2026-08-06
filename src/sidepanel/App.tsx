@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Square } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { useAgentSession } from './hooks/useAgentSession';
+import { useHostedAuth } from './hooks/useHostedAuth';
 import ChatThread, { EmptyIntro, EmptySuggestions } from './components/ChatThread';
 import SettingsPanel from './components/SettingsPanel';
 import BoundTabBar from './components/BoundTabBar';
@@ -50,12 +51,36 @@ function BootSkeleton() {
   );
 }
 
+/**
+ * Shown when the settings say hosted and there is no account behind them.
+ *
+ * Sits on the composer rather than in a corner: this is the one thing standing
+ * between the user and a working extension, and the composer is where they are
+ * looking when they find out.
+ */
+function SignInNotice({ onSignIn }: { onSignIn: () => void }) {
+  const t = useT();
+  return (
+    <div
+      role="status"
+      className="mb-1.5 flex items-center gap-2 rounded-xl border border-caution/25 bg-caution-soft px-2.5 py-1.5"
+    >
+      <p className="min-w-0 flex-1 text-[11.5px] leading-[1.4] text-fg">{t('auth.signedOut')}</p>
+      <Button type="button" size="sm" onClick={onSignIn}>
+        {t('auth.signIn')}
+      </Button>
+    </div>
+  );
+}
+
 function Composer({
   input,
   setInput,
   inputRef,
   isStreaming,
   canSend,
+  needsSignIn,
+  onSignIn,
   onSubmit,
   onStop,
 }: {
@@ -64,6 +89,8 @@ function Composer({
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   isStreaming: boolean;
   canSend: boolean;
+  needsSignIn: boolean;
+  onSignIn: () => void;
   onSubmit: (e: FormEvent) => void;
   onStop: () => void;
 }) {
@@ -72,6 +99,7 @@ function Composer({
 
   return (
     <form className="relative w-full" onSubmit={onSubmit}>
+      {needsSignIn && <SignInNotice onSignIn={onSignIn} />}
       {mentions.open && (
         <TabMentionMenu
           items={mentions.items}
@@ -202,6 +230,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ledger = useLedger(threadId);
+  const { needsSignIn } = useHostedAuth(settings);
 
   useEffect(() => {
     void hydrate();
@@ -239,8 +268,11 @@ export default function App() {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input, messages.length === 0]);
 
+  // Guards Enter as well as the button: the textarea's key handler submits the
+  // form directly, so a check that lived only on the button would let the
+  // keyboard past it.
   const submit = () => {
-    if (!input.trim()) return;
+    if (!input.trim() || needsSignIn) return;
     void sendMessage(input);
     setInput('');
   };
@@ -257,28 +289,37 @@ export default function App() {
 
   if (loading || !hydrated) return <BootSkeleton />;
 
-  const canSend = input.trim().length > 0;
+  // Sending while signed out is a guaranteed failure, so the button says no
+  // rather than the turn does. Typing stays open — the notice above the composer
+  // is the way out, and disabling the textarea would only hide what was typed.
+  const canSend = input.trim().length > 0 && !needsSignIn;
   const isEmpty = messages.length === 0;
 
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-bg" data-app-shell>
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur-sm">
-        <BrandMark size={20} aria-hidden />
-        <ThreadSwitcher
-          threadId={threadId}
-          threadList={threadList}
-          isStreaming={isStreaming}
-          blocked={showSettings}
-          settingsOpen={showSettings}
-          onToggleSettings={() => setShowSettings((s) => !s)}
-          onNewChat={() => {
-            void newChat();
-          }}
-          onSwitch={(id) => {
-            void switchThread(id);
-          }}
-        />
-      </header>
+      {/* Withheld until there is something to go back to. On a first run these
+          are all controls for a chat that cannot happen yet — new chat, history,
+          a settings toggle for the screen already showing — and they turn setup
+          into a dialog inside an app rather than the only thing on screen. */}
+      {settings && (
+        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur-sm">
+          <BrandMark size={20} aria-hidden />
+          <ThreadSwitcher
+            threadId={threadId}
+            threadList={threadList}
+            isStreaming={isStreaming}
+            blocked={showSettings}
+            settingsOpen={showSettings}
+            onToggleSettings={() => setShowSettings((s) => !s)}
+            onNewChat={() => {
+              void newChat();
+            }}
+            onSwitch={(id) => {
+              void switchThread(id);
+            }}
+          />
+        </header>
+      )}
 
       {showSettings ? (
         <SettingsPanel initial={settings} onSave={save} onClose={() => setShowSettings(false)} />
@@ -297,11 +338,15 @@ export default function App() {
                   inputRef={inputRef}
                   isStreaming={isStreaming}
                   canSend={canSend}
+                  needsSignIn={needsSignIn}
+                  onSignIn={() => setShowSettings(true)}
                   onSubmit={handleSubmit}
                   onStop={stopAgent}
                 />
               </div>
-              <EmptySuggestions onPick={pickSuggestion} />
+              {/* Hidden rather than inert: a row of one-click prompts that
+                  quietly do nothing is a worse answer than not offering them. */}
+              {!needsSignIn && <EmptySuggestions onPick={pickSuggestion} />}
             </div>
           ) : (
             <div className="relative flex min-h-0 flex-1 flex-col">
@@ -318,6 +363,8 @@ export default function App() {
                     inputRef={inputRef}
                     isStreaming={isStreaming}
                     canSend={canSend}
+                    needsSignIn={needsSignIn}
+                    onSignIn={() => setShowSettings(true)}
                     onSubmit={handleSubmit}
                     onStop={stopAgent}
                   />

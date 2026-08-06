@@ -84,9 +84,13 @@ export type ByokProviderId = Exclude<ProviderId, 'hosted'>;
 /**
  * What a first-run user lands on before touching anything.
  *
- * Still BYOK, even though the UI now leads with hosted: hosted has no sign-in
- * yet (PLAN-subscription §7 Phase 1b), so defaulting a fresh install into it
- * would hand every new user a mode that cannot work. Flip this to `hosted` in
- * the same change that gates onboarding on being signed in.
+ * Hosted, now that sign-in exists (PLAN-subscription §7 Phase 1b): a fresh
+ * install has no key to offer, so the only mode it can actually complete is the
+ * one where we hold the credential. Onboarding is gated on being signed in —
+ * the panel will not save a hosted setup without a session — so nobody lands in
+ * a mode that silently cannot work.
  */
-export const DEFAULT_PROVIDER: ByokProviderId = 'deepseek';
+export const DEFAULT_PROVIDER: ProviderId = 'hosted';
+
+/** What "bring your own key" opens on for someone who leaves the hosted path. */
+export const DEFAULT_BYOK_PROVIDER: ByokProviderId = 'deepseek';
