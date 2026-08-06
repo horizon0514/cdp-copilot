@@ -31,6 +31,25 @@ The marketing site was four static HTML files under `website/` until it moved in
 here. Merging them means `/pricing` and `/account` inherit the same
 `app/globals.css` the landing page uses, rather than becoming a second design.
 
+### A push only deploys if its *last* commit touched `cloud/`
+
+The project runs an Ignored Build Step, and it judges the head commit of the
+push — not the range that was pushed. Land a site change and then a repo-root
+commit on top of it, push both together, and Vercel reports success against a
+build it cancelled: the site change never ships, and nothing in GitHub says so
+except a status reading "Canceled by Ignored Build Step".
+
+Symptom: production still serves the old copy, `x-vercel-cache: HIT` with an
+`age` older than the push, and `/deployments` has no entry for your sha.
+
+So: push site work as the last commit of a push, or redeploy from the dashboard
+after the fact. Checking afterwards costs one command —
+
+```sh
+gh api repos/horizon0514/pagehand/commits/$(git rev-parse HEAD)/status \
+  --jq '.statuses[] | "\(.context) \(.description)"'
+```
+
 ## Status: Phase 1a
 
 Only `POST /api/v1/chat/completions` exists, and it has **no auth and no
