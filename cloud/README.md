@@ -31,24 +31,38 @@ The marketing site was four static HTML files under `website/` until it moved in
 here. Merging them means `/pricing` and `/account` inherit the same
 `app/globals.css` the landing page uses, rather than becoming a second design.
 
-### A push only deploys if its *last* commit touched `cloud/`
+### Pushing to `main` does not reliably deploy
 
-The project runs an Ignored Build Step, and it judges the head commit of the
-push — not the range that was pushed. Land a site change and then a repo-root
-commit on top of it, push both together, and Vercel reports success against a
-build it cancelled: the site change never ships, and nothing in GitHub says so
-except a status reading "Canceled by Ignored Build Step".
+Three consecutive pushes on 2026-08-06 shipped nothing, in two different ways:
 
-Symptom: production still serves the old copy, `x-vercel-cache: HIT` with an
-`age` older than the push, and `/deployments` has no entry for your sha.
+- Head commit touched only files outside `cloud/` (`supabase/.gitignore`, then a
+  docs edit): a deployment was created and immediately **"Canceled by Ignored
+  Build Step"** — 1s, no build. The site commit sat in the middle of the pushed
+  range and was never considered. GitHub reports that cancellation as a
+  **success** status, so nothing looks wrong.
+- Head commit touched `cloud/README.md`: **no deployment was created at all**,
+  still nothing 15 minutes later, with the commit status stuck at `pending`.
 
-So: push site work as the last commit of a push, or redeploy from the dashboard
-after the fact. Checking afterwards costs one command —
+The second case has no explanation yet, which is the point of this section: do
+not assume a push shipped. Symptom is always the same — production serves the
+old copy and `x-vercel-cache: HIT` reports an `age` older than the push.
+
+Check, and deploy by hand when it didn't:
 
 ```sh
-gh api repos/horizon0514/pagehand/commits/$(git rev-parse HEAD)/status \
-  --jq '.statuses[] | "\(.context) \(.description)"'
+vercel ls pagehand --scope horizon0514s-projects   # Canceled/1s = skipped
+
+# From the repo root, NOT from cloud/ — the project applies Root Directory
+# `cloud` to whatever the CLI uploads, so deploying from inside cloud/ makes it
+# look for cloud/cloud.
+vercel deploy --yes                 # builds a preview; ~30s if it's real
+vercel promote <preview-url> --yes  # same build, straight to pagehand.app
 ```
+
+`vercel link` on a fresh clone pulls production env into a root `.env.local`
+(including `OPENROUTER_API_KEY`) and appends duplicate entries to `.gitignore`.
+Both are gitignored, but the file is a live router key at the repo root: delete
+it once the link exists — the one the dev server reads is `cloud/.env.local`.
 
 ## Status: Phase 1a
 
