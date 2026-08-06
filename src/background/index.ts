@@ -4,6 +4,7 @@
 // when the side panel closes (pagehide alone is best-effort during teardown).
 
 import { installContextMenus, watchContextMenuLocale } from './contextMenus';
+import { listenForSession } from './receiveSession';
 
 interface PendingPrompt {
   tabId: number;
@@ -16,6 +17,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 watchContextMenuLocale();
+listenForSession();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (tab?.id === undefined) return;

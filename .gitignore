@@ -1,9 +1,12 @@
 node_modules/
 
 # Local secrets — API keys live here and must never be committed.
+# The glob matters: an editor swap file or a hand-made `.env.local.bak` carries
+# exactly the same keys, and the narrow patterns below let one through once.
+.env
 .env.local
 .env.*.local
-.env
+.env*.local*
 
 dist/
 dist-*/

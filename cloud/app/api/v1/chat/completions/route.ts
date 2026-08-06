@@ -1,4 +1,5 @@
 import { after } from 'next/server';
+import { AuthError, authenticate } from '@/lib/auth';
 import { proxyChatCompletion } from '@/lib/proxy';
 import { toMicroUsd } from '@/lib/usage';
 
@@ -15,13 +16,20 @@ import { toMicroUsd } from '@/lib/usage';
  */
 export const maxDuration = 60;
 
-/** Phase 1a runs with no auth at all — every request bills to the same stub.
- * Replaced by local Supabase JWT verification in Phase 1b (§4.3). */
-const STUB_USER_ID = 'dev-user';
-
 export async function POST(request: Request): Promise<Response> {
+  let caller;
+  try {
+    caller = await authenticate(request);
+  } catch (err) {
+    if (!(err instanceof AuthError)) throw err;
+    return Response.json(
+      { error: { message: err.message, type: 'invalid_request_error', code: err.code } },
+      { status: err.status },
+    );
+  }
+
   return proxyChatCompletion(request, {
-    userId: STUB_USER_ID,
+    userId: caller.userId,
     keepAlive: (work) => after(() => work),
     onUsage: (usage, meta) => {
       // Phase 1a: prove the usage frame — and the cost the whole ledger design

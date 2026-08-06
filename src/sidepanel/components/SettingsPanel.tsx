@@ -13,6 +13,7 @@ import {
 } from '../../lib/storage/schema';
 import type { LocalePreference } from '../../lib/i18n';
 import { useI18n } from '../i18n/useT';
+import { AccountField } from './AccountField';
 import { Label, SectionLabel } from './ui/label';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -320,10 +321,15 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
         </Section>
         )}
 
-        {/* Hosted deliberately has no fields. The model comes from the plan and
+        {/* Hosted's only input is an account. The model comes from the plan and
             the endpoint is ours — exposing either would only be a way to get
             them wrong. When plans offer a choice of models (PLAN-subscription
             §7 Phase 4), that picker belongs here. */}
+        {hosted && (
+        <Section icon={KeyRound} title={t('settings.sectionAccount')}>
+          <AccountField />
+        </Section>
+        )}
 
         {error && (
           <div

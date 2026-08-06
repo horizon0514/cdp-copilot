@@ -44,6 +44,9 @@ export default defineManifest({
     'storage',
     'activeTab',
     'contextMenus',
+    // launchWebAuthFlow for hosted sign-in. Grants no account access on its
+    // own — it opens a window and reports back where it landed.
+    'identity',
     // Inject the screenshot lightbox onto the page tab (full viewport), not just the side panel.
     'scripting',
   ],
@@ -65,5 +68,13 @@ export default defineManifest({
           'https://api.anthropic.com/*',
         ],
       }),
+  // The sign-in page posts the finished session here. Chrome enforces this
+  // list, and it is the only reason an ordinary tab can talk to the extension
+  // at all — which is what lets an emailed sign-in link work, since a link
+  // opens in a tab nobody controls rather than a window we opened.
+  //
+  // localhost cannot appear here: Chrome requires a second-level domain, so the
+  // sign-in page is always the deployed one even in development.
+  externally_connectable: { matches: ['https://pagehand.app/*'] },
   minimum_chrome_version: '116',
 });

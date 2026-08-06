@@ -13,8 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default function ZhLayout({ children }: { children: ReactNode }) {
+  // Browser extensions decorate <html> before React hydrates — the translation
+  // ones add theme attributes — and the resulting mismatch warning is noise we
+  // cannot fix from here. suppressHydrationWarning is scoped to this element, so
+  // a genuine mismatch inside the page still reports.
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

@@ -1,0 +1,23 @@
+<!--
+  Sign-in email for the extension flow.
+
+  Deliberately a code and not a link. The sign-in page runs inside the window
+  chrome.identity.launchWebAuthFlow opened, and Chrome only watches that window
+  for the redirect that ends the flow. A link opens wherever the user's mail
+  client sends it — a different window, unwatched — so the flow would hang with
+  the user staring at a page that looks signed in. A code can be carried back by
+  hand into the window that matters.
+
+  {{ .Token }} is the one-time code; {{ .ConfirmationURL }} is deliberately unused.
+-->
+<h2>Your Pagehand sign-in code</h2>
+
+<p style="font-size:28px;letter-spacing:0.15em;font-weight:600;margin:16px 0">
+  {{ .Token }}
+</p>
+
+<p>Enter this code in the Pagehand sign-in window. It expires in one hour.</p>
+
+<p style="color:#666;font-size:13px">
+  If you didn’t ask to sign in, you can ignore this email.
+</p>
