@@ -46,19 +46,3 @@ export async function POST(request: Request): Promise<Response> {
     },
   });
 }
-
-/** Extension pages get a CORS bypass for granted host permissions, so this
- * shouldn't be needed — but a missing preflight answer fails in a way that
- * looks like a network error, which is an afternoon nobody should spend.
- * Auth here is a bearer token, never a cookie, so CORS isn't a trust boundary. */
-export async function OPTIONS(request: Request): Promise<Response> {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'access-control-allow-origin': request.headers.get('origin') ?? '*',
-      'access-control-allow-methods': 'POST, OPTIONS',
-      'access-control-allow-headers': 'authorization, content-type',
-      'access-control-max-age': '86400',
-    },
-  });
-}

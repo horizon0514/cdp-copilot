@@ -463,14 +463,38 @@ auth and no billing at all. Do 1a before touching Supabase.
       200, usage and cost captured on each. Option A holds; **Option B is not
       needed** and §4.2's open question is closed.
 
-**1b — auth**
+**1b — auth — DONE**
 
-- [ ] Supabase project; `launchWebAuthFlow` sign-in from the extension
-- [ ] Local JWT verification in the route handler
-- [ ] `hostedFetch` refreshing the access token per request
-- [ ] Hard-coded allowlist of emails / still no billing
+- [x] Supabase project, sign-in from the extension
+- [x] Local JWT verification in the route handler
+- [x] `hostedFetch` refreshing the access token per request
+- [x] Hard-coded allowlist of emails / still no billing
 
-**Exit:** you can sign in and run “Summarize this page” / “console errors” without any provider key in Settings.
+**Exit met:** signing in and running a turn with no provider key in Settings.
+
+Three things the plan had wrong, worth carrying forward:
+
+- **Not `launchWebAuthFlow`.** It watches a window it opened for the redirect
+  that ends the flow, and an emailed link opens wherever the mail client sends
+  it — a window Chrome is not watching. Sign-in runs in an ordinary tab and the
+  page returns the session through `chrome.runtime.sendMessage`, which the
+  manifest's `externally_connectable` permits for one origin. The cost: the
+  link must be opened in this Chrome profile.
+- **No shared JWT secret.** The project signs with ES256 and publishes a JWKS,
+  so verification needs no secret at all — better than §4.3 assumed.
+- **Email templates need SMTP.** The free tier refuses template changes while
+  the built-in mail service is in use, so the email carries a link and not a
+  code. That service is also rate-limited to a handful of messages an hour and
+  cannot carry a real sign-in flow. `supabase/templates/magic_link.html` is
+  written and commented out, waiting on an SMTP sender — at which point the
+  email can carry both, and the code becomes the fallback for anyone reading
+  their mail outside this browser.
+
+### Phase 1c — before anyone else can sign in
+
+- [ ] Custom SMTP (the built-in sender cannot serve more than a test account)
+- [ ] Pin the extension id with a manifest `key`, so unpacked and published
+      builds share one id and the allow-lists stop needing two entries
 
 ### Phase 2 — Entitlements
 
