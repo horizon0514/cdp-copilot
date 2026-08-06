@@ -1,6 +1,6 @@
 # Pagehand
 
-**Site:** https://pagehand.vercel.app · **Privacy:** https://pagehand.vercel.app/privacy
+**Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/pagehand/pcecngibbelhajhanohmcidacfmkekbb) · **Site:** https://pagehand.app · **Privacy:** https://pagehand.app/privacy
 
 An AI that lives in Chrome’s side panel and reads / automates the current tab
 via the Chrome DevTools Protocol — no external MCP client or Node process
@@ -83,7 +83,7 @@ Deploys via **Vercel Git integration** (not GitHub Actions):
 
 After that:
 
-- push / merge to `main` → production (`https://pagehand.vercel.app`)
+- push / merge to `main` → production (`https://pagehand.app`)
 - open a PR that touches `cloud/` → preview deployment
 
 Local: `cd cloud && npm run dev`.

@@ -1,18 +1,16 @@
 import type { Metadata } from 'next';
 import { LangSwitch } from '@/components/lang-switch';
-import { Footer, GITHUB_URL, Grain, Nav } from '@/components/site';
-
-const SITE = 'https://pagehand.vercel.app';
+import { Footer, GITHUB_URL, Grain, Nav, SITE_URL } from '@/components/site';
 
 export const metadata: Metadata = {
   title: '隐私政策 — Pagehand',
   description: 'Pagehand Chrome 扩展的隐私政策。',
   alternates: {
-    canonical: `${SITE}/zh/privacy`,
+    canonical: `${SITE_URL}/zh/privacy`,
     languages: {
-      en: `${SITE}/privacy`,
-      'zh-CN': `${SITE}/zh/privacy`,
-      'x-default': `${SITE}/privacy`,
+      en: `${SITE_URL}/privacy`,
+      'zh-CN': `${SITE_URL}/zh/privacy`,
+      'x-default': `${SITE_URL}/privacy`,
     },
   },
 };

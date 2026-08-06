@@ -1,18 +1,16 @@
 import type { Metadata } from 'next';
-import { DownloadCta, TagLink, ZipLink } from '@/components/release';
+import { TagLink, ZipLink } from '@/components/release';
 import { LangSwitch } from '@/components/lang-switch';
 import { LocaleRedirect } from '@/components/locale-redirect';
-import { Footer, GITHUB_URL, Grain, HeroStage, Nav } from '@/components/site';
-
-const SITE = 'https://pagehand.vercel.app';
+import { Footer, GITHUB_URL, Grain, HeroStage, Nav, SITE_URL, STORE_URL } from '@/components/site';
 
 export const metadata: Metadata = {
   title: 'Pagehand — AI that works the current page',
   description:
     'Pagehand is a Chrome side-panel AI that reads and automates the current page via the Chrome DevTools Protocol. Bring your own API key.',
   alternates: {
-    canonical: `${SITE}/`,
-    languages: { en: `${SITE}/`, 'zh-CN': `${SITE}/zh`, 'x-default': `${SITE}/` },
+    canonical: `${SITE_URL}/`,
+    languages: { en: `${SITE_URL}/`, 'zh-CN': `${SITE_URL}/zh`, 'x-default': `${SITE_URL}/` },
   },
   openGraph: {
     title: 'Pagehand',
@@ -60,7 +58,9 @@ export default function Home() {
               &amp; network — through CDP, with your own API key.
             </p>
             <div className="cta-row">
-              <DownloadCta idle="Download" tagPrefix="Download " />
+              <a className="btn btn-primary" id="install-cta" href={STORE_URL}>
+                Add to Chrome
+              </a>
               <a className="btn btn-ghost" href="#install">
                 How to install
               </a>
@@ -76,58 +76,84 @@ export default function Home() {
         <section className="section" id="install">
           <div className="wrap">
             <p className="section-label">Install</p>
-            <h2>Load it into Chrome in a few clicks.</h2>
+            <h2>Get it from the Chrome Web Store.</h2>
             <p className="section-lead">
-              No Node, no build tools. Download the release zip, unpack it, and load the folder as
-              an unpacked extension.
+              One click, and Chrome keeps it up to date. No zip to keep, no folder to remember, no
+              Developer mode.
             </p>
             <ol className="steps">
               <li>
-                <h3>Download</h3>
+                <h3>Add to Chrome</h3>
                 <p>
-                  Get <ZipLink>pagehand.zip</ZipLink> from the <TagLink idle="latest" /> GitHub
-                  Release.
+                  Open the <a href={STORE_URL}>Pagehand listing</a> and click{' '}
+                  <strong>Add to Chrome</strong>.
                 </p>
               </li>
               <li>
-                <h3>Unzip</h3>
+                <h3>Pin it</h3>
                 <p>
-                  Extract the zip to a folder you will keep — Chrome reads that folder every time it
-                  starts. Don’t delete it after installing.
+                  Click the puzzle icon in the toolbar and pin Pagehand, so the side panel is always
+                  one click away.
                 </p>
               </li>
               <li>
-                <h3>Open Extensions</h3>
+                <h3>Open the side panel</h3>
                 <p>
-                  In Chrome’s address bar, go to <kbd>chrome://extensions</kbd> and press Enter.
-                </p>
-              </li>
-              <li>
-                <h3>Turn on Developer mode</h3>
-                <p>
-                  Toggle <strong>Developer mode</strong> in the top-right corner of that page.
-                </p>
-              </li>
-              <li>
-                <h3>Load unpacked</h3>
-                <p>
-                  Click <strong>Load unpacked</strong>, then choose the folder you unzipped (the one
-                  that contains <code>manifest.json</code>).
-                </p>
-              </li>
-              <li>
-                <h3>Open Pagehand</h3>
-                <p>
-                  Click the puzzle icon in the toolbar, pin Pagehand, open the side panel, and add
-                  your API key in Settings.
+                  Click the Pagehand icon on any page. Sign in — or switch to your own API key — and
+                  start asking.
                 </p>
               </li>
             </ol>
             <p className="install-note">
-              To update later: download the new zip, replace the folder contents, then click the
-              reload icon on <kbd>chrome://extensions</kbd>. Prefer building yourself?{' '}
+              Updates arrive on their own. Prefer building it yourself?{' '}
               <a href={`${GITHUB_URL}#setup`}>See the GitHub setup</a>.
             </p>
+
+            {/* Kept, not featured. It is the right path for anyone on a build
+                that hasn't cleared review yet, and the wrong one for everybody
+                else — six steps and a folder they must never delete. */}
+            <details className="install-alt">
+              <summary>Rather load it unpacked?</summary>
+              <ol className="steps">
+                <li>
+                  <h3>Download</h3>
+                  <p>
+                    Get <ZipLink>pagehand.zip</ZipLink> from the <TagLink idle="latest" /> GitHub
+                    Release.
+                  </p>
+                </li>
+                <li>
+                  <h3>Unzip</h3>
+                  <p>
+                    Extract the zip to a folder you will keep — Chrome reads that folder every time
+                    it starts. Don’t delete it after installing.
+                  </p>
+                </li>
+                <li>
+                  <h3>Open Extensions</h3>
+                  <p>
+                    In Chrome’s address bar, go to <kbd>chrome://extensions</kbd> and press Enter.
+                  </p>
+                </li>
+                <li>
+                  <h3>Turn on Developer mode</h3>
+                  <p>
+                    Toggle <strong>Developer mode</strong> in the top-right corner of that page.
+                  </p>
+                </li>
+                <li>
+                  <h3>Load unpacked</h3>
+                  <p>
+                    Click <strong>Load unpacked</strong>, then choose the folder you unzipped (the
+                    one that contains <code>manifest.json</code>).
+                  </p>
+                </li>
+              </ol>
+              <p className="install-note">
+                To update later: download the new zip, replace the folder contents, then click the
+                reload icon on <kbd>chrome://extensions</kbd>.
+              </p>
+            </details>
           </div>
         </section>
 

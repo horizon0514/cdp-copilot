@@ -460,6 +460,35 @@ html[lang^="zh"] .section-lead {
   font-size: 0.92rem;
 }
 
+/* The unpacked install, folded away. Present for anyone who needs it, and not
+   competing with the one-click path for anyone who doesn't. */
+.install-alt {
+  margin: 2.5rem 0 0;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.install-alt > summary {
+  cursor: pointer;
+  color: var(--fog);
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.install-alt > summary:hover {
+  color: var(--paper-dim);
+}
+
+.install-alt .steps {
+  margin-top: 1.75rem;
+}
+
+/* The list inside already animates on render; replaying it on every toggle
+   makes opening the disclosure feel like a page load. */
+.install-alt .steps li {
+  animation: none;
+}
+
 .install-note a {
   color: var(--mark);
 }

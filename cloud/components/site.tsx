@@ -8,9 +8,28 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+/**
+ * The canonical origin, and the one every page's `alternates` are built from.
+ *
+ * Shared rather than redeclared per page: it was copied into all four, which is
+ * three chances for canonical and hreflang to disagree — the kind of drift that
+ * costs nothing to introduce and shows up only in a search console weeks later.
+ *
+ * `pagehand.app`, not the `.vercel.app` it deploys under: that is the domain the
+ * extension already talks to, and canonical URLs pointing anywhere else would
+ * split the site across two origins.
+ */
+export const SITE_URL = 'https://pagehand.app';
+
 export const GITHUB_URL = 'https://github.com/horizon0514/pagehand';
 export const RELEASE_ZIP_URL = `${GITHUB_URL}/releases/latest/download/pagehand.zip`;
 export const RELEASE_PAGE_URL = `${GITHUB_URL}/releases/latest`;
+
+/** The store listing — now the way in. Loading an unpacked zip still works and
+ * is still documented, but it asks six steps and a folder kept forever of
+ * someone who came here to try a browser extension. */
+export const STORE_URL =
+  'https://chromewebstore.google.com/detail/pagehand/pcecngibbelhajhanohmcidacfmkekbb';
 
 /** Paper texture overlay; purely decorative. */
 export function Grain() {

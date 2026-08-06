@@ -1,7 +1,7 @@
 # Chrome Web Store listing — Pagehand
 
-Privacy policy URL: https://pagehand.vercel.app/privacy  
-Homepage URL: https://pagehand.vercel.app  
+Privacy policy URL: https://pagehand.app/privacy  
+Homepage URL: https://pagehand.app  
 Support / GitHub: https://github.com/horizon0514/pagehand
 
 ## Names
@@ -42,7 +42,7 @@ Privacy
 • While attached, Chrome shows “Pagehand is debugging this browser” — a built-in safety banner that cannot be hidden
 
 Open source: https://github.com/horizon0514/pagehand
-Privacy policy: https://pagehand.vercel.app/privacy
+Privacy policy: https://pagehand.app/privacy
 ```
 
 ## Chinese detailed description (optional locale)
@@ -65,7 +65,7 @@ Pagehand 是 Chrome 侧栏里的 AI 助手：通过 Chrome DevTools Protocol 读
 • 附着标签页时，Chrome 会显示「Pagehand is debugging this browser」横幅（系统安全提示，无法关闭）
 
 开源：https://github.com/horizon0514/pagehand
-隐私政策：https://pagehand.vercel.app/privacy
+隐私政策：https://pagehand.app/privacy
 ```
 
 ## Store category & metadata
@@ -81,7 +81,7 @@ Path: Developer Dashboard → your item → **Privacy practices**
 Privacy policy URL:
 
 ```
-https://pagehand.vercel.app/privacy
+https://pagehand.app/privacy
 ```
 
 ### Single purpose description

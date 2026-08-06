@@ -1,17 +1,15 @@
 import type { Metadata } from 'next';
-import { DownloadCta, TagLink, ZipLink } from '@/components/release';
+import { TagLink, ZipLink } from '@/components/release';
 import { LangSwitch } from '@/components/lang-switch';
-import { Footer, GITHUB_URL, Grain, HeroStage, Nav } from '@/components/site';
-
-const SITE = 'https://pagehand.vercel.app';
+import { Footer, GITHUB_URL, Grain, HeroStage, Nav, SITE_URL, STORE_URL } from '@/components/site';
 
 export const metadata: Metadata = {
   title: 'Pagehand — 能操作当前网页的 AI',
   description:
     'Pagehand 是一款 Chrome 侧栏 AI，通过 Chrome DevTools Protocol 读取并自动化当前网页。自带你的 API 密钥即可。',
   alternates: {
-    canonical: `${SITE}/zh`,
-    languages: { en: `${SITE}/`, 'zh-CN': `${SITE}/zh`, 'x-default': `${SITE}/` },
+    canonical: `${SITE_URL}/zh`,
+    languages: { en: `${SITE_URL}/`, 'zh-CN': `${SITE_URL}/zh`, 'x-default': `${SITE_URL}/` },
   },
   openGraph: {
     title: 'Pagehand',
@@ -57,7 +55,9 @@ export default function ZhHome() {
               API 密钥。
             </p>
             <div className="cta-row">
-              <DownloadCta idle="下载安装包" tagPrefix="下载 " />
+              <a className="btn btn-primary" id="install-cta" href={STORE_URL}>
+                添加到 Chrome
+              </a>
               <a className="btn btn-ghost" href="#install">
                 安装说明
               </a>
@@ -73,55 +73,75 @@ export default function ZhHome() {
         <section className="section" id="install">
           <div className="wrap">
             <p className="section-label">安装</p>
-            <h2>几步就能装进 Chrome。</h2>
+            <h2>从 Chrome 应用商店安装。</h2>
             <p className="section-lead">
-              不用装 Node，也不用自己编译。下载 Release
-              压缩包，解压后作为「已解压的扩展程序」加载即可。
+              一键装好，Chrome 自动更新。不用留压缩包，不用记文件夹，也不用开开发者模式。
             </p>
             <ol className="steps">
               <li>
-                <h3>下载</h3>
+                <h3>添加到 Chrome</h3>
                 <p>
-                  从 GitHub Release <TagLink idle="最新版" /> 下载 <ZipLink>pagehand.zip</ZipLink>。
+                  打开 <a href={STORE_URL}>Pagehand 商店页</a>，点击{' '}
+                  <strong>添加至 Chrome</strong>。
                 </p>
               </li>
               <li>
-                <h3>解压</h3>
-                <p>
-                  解压到一个你会长期保留的文件夹。Chrome 每次启动都会读取这个文件夹，装完后不要删掉。
-                </p>
+                <h3>固定到工具栏</h3>
+                <p>点击工具栏的拼图图标，把 Pagehand 固定住，侧栏随时一键可达。</p>
               </li>
               <li>
-                <h3>打开扩展程序页</h3>
-                <p>
-                  在 Chrome 地址栏输入 <kbd>chrome://extensions</kbd>，回车。
-                </p>
-              </li>
-              <li>
-                <h3>打开开发者模式</h3>
-                <p>
-                  在页面右上角打开 <strong>开发者模式</strong> 开关。
-                </p>
-              </li>
-              <li>
-                <h3>加载已解压的扩展程序</h3>
-                <p>
-                  点击 <strong>加载已解压的扩展程序</strong>，选中刚才解压出的文件夹 （里面应有{' '}
-                  <code>manifest.json</code>）。
-                </p>
-              </li>
-              <li>
-                <h3>打开 Pagehand</h3>
-                <p>
-                  点击工具栏拼图图标，固定 Pagehand，打开侧栏，在设置里填入你的 API 密钥即可开始。
-                </p>
+                <h3>打开侧栏</h3>
+                <p>在任意网页点击 Pagehand 图标，登录（或切换成自己的 API 密钥）就能开始提问。</p>
               </li>
             </ol>
             <p className="install-note">
-              以后更新：下载新的 zip，覆盖原文件夹内容，再到 <kbd>chrome://extensions</kbd>{' '}
-              点一下刷新图标。 想自己从源码构建？{' '}
+              更新会自动完成。想自己从源码构建？{' '}
               <a href={`${GITHUB_URL}#setup`}>看 GitHub 说明</a>。
             </p>
+
+            {/* 保留但不主推：只有在某个版本还没过审时才用得上，对其他人是六步加一个永远不能删的文件夹。 */}
+            <details className="install-alt">
+              <summary>想用「加载已解压的扩展程序」？</summary>
+              <ol className="steps">
+                <li>
+                  <h3>下载</h3>
+                  <p>
+                    从 GitHub Release <TagLink idle="最新版" /> 下载{' '}
+                    <ZipLink>pagehand.zip</ZipLink>。
+                  </p>
+                </li>
+                <li>
+                  <h3>解压</h3>
+                  <p>
+                    解压到一个你会长期保留的文件夹。Chrome
+                    每次启动都会读取这个文件夹，装完后不要删掉。
+                  </p>
+                </li>
+                <li>
+                  <h3>打开扩展程序页</h3>
+                  <p>
+                    在 Chrome 地址栏输入 <kbd>chrome://extensions</kbd>，回车。
+                  </p>
+                </li>
+                <li>
+                  <h3>打开开发者模式</h3>
+                  <p>
+                    在页面右上角打开 <strong>开发者模式</strong> 开关。
+                  </p>
+                </li>
+                <li>
+                  <h3>加载已解压的扩展程序</h3>
+                  <p>
+                    点击 <strong>加载已解压的扩展程序</strong>，选中刚才解压出的文件夹 （里面应有{' '}
+                    <code>manifest.json</code>）。
+                  </p>
+                </li>
+              </ol>
+              <p className="install-note">
+                以后更新：下载新的 zip，覆盖原文件夹内容，再到 <kbd>chrome://extensions</kbd>{' '}
+                点一下刷新图标。
+              </p>
+            </details>
           </div>
         </section>
 
