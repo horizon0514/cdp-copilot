@@ -15,8 +15,13 @@ import { Input } from './ui/input';
  * The email is collected here rather than on a web page so that signing in
  * opens exactly one tab — the one the emailed link opens — instead of one to
  * show a text field and a second to finish, leaving the first stranded.
+ *
+ * `onSignedIn` exists because hosted mode has nothing else to configure: the
+ * account is the configuration. Leaving the settings unsaved until someone
+ * presses a button would mean a panel that looks ready and an extension that
+ * silently does nothing — which is exactly what happened.
  */
-export function AccountField() {
+export function AccountField({ onSignedIn }: { onSignedIn: () => void }) {
   const { t } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +31,13 @@ export function AccountField() {
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
 
+  // Mirrors `session` so the storage listener can tell a fresh sign-in from a
+  // refresh without re-subscribing on every change.
+  const known = useRef<Session | null>(null);
+
   useEffect(() => {
     void getSession().then((s) => {
+      known.current = s;
       setSession(s);
       setLoading(false);
     });
@@ -38,11 +48,17 @@ export function AccountField() {
   // from storage rather than only from the promise below.
   useEffect(() => {
     const onChanged = (_c: unknown, area: string) => {
-      if (area === 'local') void getSession().then(setSession);
+      if (area !== 'local') return;
+      void getSession().then((next) => {
+        const isNew = next !== null && known.current === null;
+        known.current = next;
+        setSession(next);
+        if (isNew) onSignedIn();
+      });
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
+  }, [onSignedIn]);
 
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -71,6 +87,7 @@ export function AccountField() {
 
   const handleSignOut = async () => {
     await signOut();
+    known.current = null;
     setSession(null);
     setSent(false);
   };

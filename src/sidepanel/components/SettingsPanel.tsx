@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff, KeyRound, Languages, Sparkles, X } from 'lucide-react';
 import {
   Settings,
@@ -145,6 +145,12 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
     if (next === 'hosted') handleProviderChange('hosted');
     else handleProviderChange(lastByokProvider);
   };
+
+  /** Hosted has no other input, so signing in *is* completing setup. Persisted
+   * without closing the panel: the user still sees the result of what they did. */
+  const persistHosted = useCallback(() => {
+    void onSave({ provider: 'hosted', model: HOSTED_MODELS[0] });
+  }, [onSave]);
 
   const handleLanguageChange = (next: LocalePreference) => {
     void setPreference(next);
@@ -327,7 +333,7 @@ export default function SettingsPanel({ initial, onSave, onClose }: Props) {
             §7 Phase 4), that picker belongs here. */}
         {hosted && (
         <Section icon={KeyRound} title={t('settings.sectionAccount')}>
-          <AccountField />
+          <AccountField onSignedIn={persistHosted} />
         </Section>
         )}
 

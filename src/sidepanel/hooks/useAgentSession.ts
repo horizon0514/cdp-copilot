@@ -49,7 +49,15 @@ export function useAgentSession(settings: Settings | null) {
 
   const runTurn = useCallback(
     async (text: string, signal: AbortSignal) => {
-      if (!settings) return;
+      if (!settings) {
+        // Returning quietly here reads as the extension being broken: the
+        // message goes nowhere and nothing says why. Settings only auto-open
+        // once, on mount, so a panel dismissed by hand leaves the user typing
+        // into a void.
+        addUserMessage(toDisplayText(text));
+        setMessageError(startAssistantMessage(), 'Finish setup in Settings first.');
+        return;
+      }
 
       // Read history from the store rather than a subscribed value: a turn that
       // takes over from another starts before React has re-rendered with the
