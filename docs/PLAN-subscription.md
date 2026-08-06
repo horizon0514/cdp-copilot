@@ -393,7 +393,7 @@ recomputing it from a price list that could silently go stale (§2).
 | `src/lib/llm/agentLoop.ts` | No semantic change. Hosted path should run a **lower `maxSteps`** than BYOK’s 100 (§3.2.1) |
 | `SettingsPanel` | Default: account + plan + model picker; Advanced: BYOK providers |
 | Onboarding | Gate on **signed in** (hosted), not on API key |
-| `store/LISTING.md` + privacy + website | Rewrite backend/privacy claims |
+| Store listing + privacy + website | Rewrite backend/privacy claims. Site and policy done; the listing text lives in the Web Store dashboard and still says "no Pagehand backend" |
 | `extract_content` sub-`generateText` | Must also go hosted path / count against quota |
 
 ## 6. Backend shape
@@ -510,7 +510,8 @@ Three things the plan had wrong, worth carrying forward:
 
 - [ ] Pro unlocks existing BYOK settings
 - [ ] Empty-state / onboarding copy for hosted-first
-- [ ] LISTING + privacy + website messaging
+- [x] Privacy policy + website messaging (hosted-first, private preview stated)
+- [ ] Store listing messaging — dashboard copy + data-safety answers still claim no backend
 - [ ] Failure UX: quota, auth expired, router outage
 - [ ] Telemetry: turn success rate, cost per turn (internal)
 
