@@ -146,7 +146,7 @@ Access the tab the user is interacting with when they open the side panel or use
 
 **storage**
 ```
-Persist LLM settings (provider, model, API key), UI locale, and related preferences in chrome.storage.local on this device only (not Chrome Sync).
+Persist LLM settings (provider, model, API key), the hosted-account session token, UI locale, and related preferences in chrome.storage.local on this device only (not Chrome Sync).
 ```
 
 **contextMenus**
@@ -157,6 +157,11 @@ Provide “ask about this page / selection” entries so users can send page con
 **scripting**
 ```
 Inject a temporary screenshot lightbox overlay onto the page tab so images from the chat can be viewed full-viewport.
+```
+
+**Host permission: https://pagehand.app/***
+```
+Pagehand’s own service. Used to send a sign-in email, refresh the account session, and forward chat requests to the model on the user’s behalf when they choose the hosted option instead of supplying their own API key. No other site is contacted for this.
 ```
 
 **Host permission: https://api.deepseek.com/***

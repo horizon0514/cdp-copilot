@@ -44,9 +44,9 @@ export default defineManifest({
     'storage',
     'activeTab',
     'contextMenus',
-    // launchWebAuthFlow for hosted sign-in. Grants no account access on its
-    // own — it opens a window and reports back where it landed.
-    'identity',
+    // No `identity`: it was added for launchWebAuthFlow and never used, because
+    // that API cannot see an emailed link land — see lib/auth/signIn.ts. Sign-in
+    // rides on `externally_connectable` below instead.
     // Inject the screenshot lightbox onto the page tab (full viewport), not just the side panel.
     'scripting',
   ],
