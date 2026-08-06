@@ -1,19 +1,28 @@
 import type { Metadata } from 'next';
 import { TagLink, ZipLink } from '@/components/release';
 import { LangSwitch } from '@/components/lang-switch';
-import { Footer, GITHUB_URL, Grain, HeroStage, Nav, SITE_URL, STORE_URL } from '@/components/site';
+import {
+  Footer,
+  GITHUB_URL,
+  Grain,
+  HeroStage,
+  Nav,
+  PREVIEW_REQUEST_URL,
+  SITE_URL,
+  STORE_URL,
+} from '@/components/site';
 
 export const metadata: Metadata = {
   title: 'Pagehand — 能操作当前网页的 AI',
   description:
-    'Pagehand 是一款 Chrome 侧栏 AI，通过 Chrome DevTools Protocol 读取并自动化当前网页。自带你的 API 密钥即可。',
+    'Pagehand 是一款 Chrome 侧栏 AI，通过 Chrome DevTools Protocol 读取并自动化当前网页。登录即用，模型由我们托管；也可以自带 API 密钥。',
   alternates: {
     canonical: `${SITE_URL}/zh`,
     languages: { en: `${SITE_URL}/`, 'zh-CN': `${SITE_URL}/zh`, 'x-default': `${SITE_URL}/` },
   },
   openGraph: {
     title: 'Pagehand',
-    description: '通过 CDP 读取并自动化当前 Chrome 网页的 AI。侧栏操作，密钥自持，无中间云服务。',
+    description: '通过 CDP 读取并自动化当前 Chrome 网页的 AI。侧栏操作，登录即用，也可自带密钥。',
     type: 'website',
     locale: 'zh_CN',
   },
@@ -36,6 +45,9 @@ export default function ZhHome() {
             <a className="hide-sm" href="#install">
               安装
             </a>
+            <a className="hide-sm" href="#modes">
+              两种模式
+            </a>
             <a className="hide-sm" href="#how">
               原理
             </a>
@@ -51,8 +63,8 @@ export default function ZhHome() {
             </p>
             <h1>能动手操作当前网页的 AI。</h1>
             <p className="hero-lead">
-              Chrome 侧栏助手。读取页面、点击、填写表单，并查看控制台与网络 — 通过 CDP，使用你自己的
-              API 密钥。
+              Chrome 侧栏助手。读取页面、点击、填写表单，并查看控制台与网络 — 全部通过 CDP。登录即
+              用，模型由我们来搞定。
             </p>
             <div className="cta-row">
               <a className="btn btn-primary" id="install-cta" href={STORE_URL}>
@@ -63,7 +75,7 @@ export default function ZhHome() {
               </a>
             </div>
             <p className="hero-meta">
-              Manifest V3 · chrome.debugger · 自带 OpenAI / Anthropic / DeepSeek 密钥
+              Manifest V3 · chrome.debugger · 托管模型，或自带 OpenAI / Anthropic / DeepSeek 密钥
             </p>
           </div>
         </div>
@@ -145,6 +157,53 @@ export default function ZhHome() {
           </div>
         </section>
 
+        <section className="section" id="modes">
+          <div className="wrap">
+            <p className="section-label">模型来源</p>
+            <h2>登录即用，或自带密钥。</h2>
+            <p className="section-lead">
+              两种拿到模型的方式。「手」都在本地 — Agent 循环和所有 CDP 工具都跑在你的浏览器里。
+            </p>
+            <ul className="modes">
+              <li className="mode-default">
+                <p className="mode-tag">托管 · 默认</p>
+                <h3>登录即用</h3>
+                <p>
+                  一个邮箱，不用 API 密钥，也不用注册模型厂商账号。模型调用经由 Pagehand
+                  自己的接口转发，账单我们出。
+                </p>
+                <ul className="mode-points">
+                  <li>首次打开无需任何配置</li>
+                  <li>对话记录依然只留在你的浏览器里</li>
+                  <li>配额还在做，目前为私测</li>
+                </ul>
+              </li>
+              <li>
+                <p className="mode-tag">自带密钥 · 进阶</p>
+                <h3>用你自己的密钥</h3>
+                <p>
+                  在侧栏填入 DeepSeek、OpenAI、Anthropic 或任意 OpenAI
+                  兼容端点，请求从你的浏览器直连该厂商。
+                </p>
+                <ul className="mode-points">
+                  <li>
+                    密钥保存在 <code>chrome.storage.local</code>
+                  </li>
+                  <li>完全不经过 Pagehand 的服务器</li>
+                  <li>厂商支持什么模型就能用什么，按其原价</li>
+                </ul>
+              </li>
+            </ul>
+            <div className="note-box modes-note">
+              <p>
+                托管模式目前是私测：登录可以正常完成，但在配额上线前只对少量账号放行。
+                <a href={PREVIEW_REQUEST_URL}>发邮件申请体验 →</a>{' '}
+                自带密钥则对所有人可用，连账号都不用注册。
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="section" id="how">
           <div className="wrap">
             <p className="section-label">原理</p>
@@ -161,8 +220,8 @@ export default function ZhHome() {
                 </p>
               </li>
               <li>
-                <h3>填入密钥</h3>
-                <p>默认 DeepSeek — OpenAI、Anthropic 或任意 OpenAI 兼容端点均可。</p>
+                <h3>登录</h3>
+                <p>填个邮箱，模型的事交给我们 — 也可以在设置里切换成自己的密钥。</p>
               </li>
               <li>
                 <h3>让它动手</h3>
@@ -212,12 +271,14 @@ export default function ZhHome() {
         <section className="section" id="privacy">
           <div className="wrap">
             <p className="section-label">隐私</p>
-            <h2>你的密钥不会经我们的服务器离开本机。</h2>
+            <h2>两种模式，「手」都在本地。</h2>
             <div className="privacy-box">
               <p>
-                Pagehand 没有后端。API 密钥保存在 <code>chrome.storage.local</code>{' '}
-                中，仅发送给你选择的模型提供商。附着调试时，Chrome 会显示 「Pagehand is debugging
-                this browser」横幅 — 这是有意为之，且无法隐藏。{' '}
+                页面内容在你的浏览器里读取，对话记录也从不离开。托管模式下，提示词和页面上下文会经{' '}
+                <code>pagehand.app</code> 转发给模型提供商 —
+                我们记的是一次请求花了多少钱，而不是它说了什么。用自己的密钥时则完全不经过我们的服务器：密钥留在{' '}
+                <code>chrome.storage.local</code>，请求直连厂商。附着调试时，Chrome 会显示
+                「Pagehand is debugging this browser」横幅 — 这是有意为之，且无法隐藏。{' '}
                 <a href="/zh/privacy">阅读完整隐私政策 →</a>
               </p>
             </div>

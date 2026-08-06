@@ -22,6 +22,19 @@ import type { ReactNode } from 'react';
 export const SITE_URL = 'https://pagehand.app';
 
 export const GITHUB_URL = 'https://github.com/horizon0514/pagehand';
+
+export const CONTACT_EMAIL = 'horizon05140@gmail.com';
+
+/**
+ * Where someone asks to be let into the hosted preview.
+ *
+ * The proxy serves an allowlist while quotas are being built (`authenticate()`
+ * in `lib/auth.ts`), so the request has to reach a human either way — and mail
+ * carries the address the allowlist is keyed on without asking for it twice.
+ */
+export const PREVIEW_REQUEST_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+  'Pagehand hosted preview access',
+)}`;
 export const RELEASE_ZIP_URL = `${GITHUB_URL}/releases/latest/download/pagehand.zip`;
 export const RELEASE_PAGE_URL = `${GITHUB_URL}/releases/latest`;
 

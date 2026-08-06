@@ -517,6 +517,86 @@ html[lang^="zh"] .section-lead {
   font-size: 0.95rem;
 }
 
+/* ——— Modes ——— */
+/* Two cards, not a table: the choice is "which one am I", and a table invites a
+   feature-by-feature comparison of two things that differ in one respect. */
+.modes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.modes > li {
+  padding: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+/* Hosted is the recommendation, not one of two peers, so it carries the accent
+   the primary button uses. */
+.modes > li.mode-default {
+  border-color: var(--line-strong);
+  background: linear-gradient(135deg, rgba(214, 242, 92, 0.06), transparent 55%), var(--ink-2);
+}
+
+.mode-tag {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mark-deep);
+}
+
+.modes h3 {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.modes > li > p {
+  margin: 0;
+  color: var(--fog);
+  font-size: 0.95rem;
+}
+
+.mode-points {
+  list-style: none;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  color: var(--paper-dim);
+}
+
+.mode-points li {
+  position: relative;
+  padding-left: 1.1rem;
+}
+
+.mode-points li::before {
+  content: "·";
+  position: absolute;
+  left: 0.3rem;
+  color: var(--mark);
+}
+
+.mode-points code,
+.modes code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.modes-note {
+  margin: 1.5rem 0 0;
+}
+
 .privacy-box,
 .note-box {
   padding: 1.4rem 1.5rem;
@@ -531,7 +611,8 @@ html[lang^="zh"] .section-lead {
   color: var(--paper-dim);
 }
 
-.privacy-box a {
+.privacy-box a,
+.note-box a {
   color: var(--mark);
 }
 
@@ -618,6 +699,10 @@ html[lang^="zh"] .section-lead {
   .feature-list li {
     grid-template-columns: 1fr;
     gap: 0.4rem;
+  }
+
+  .modes {
+    grid-template-columns: 1fr;
   }
 
   .nav-links .hide-sm {

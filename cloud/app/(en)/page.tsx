@@ -2,12 +2,21 @@ import type { Metadata } from 'next';
 import { TagLink, ZipLink } from '@/components/release';
 import { LangSwitch } from '@/components/lang-switch';
 import { LocaleRedirect } from '@/components/locale-redirect';
-import { Footer, GITHUB_URL, Grain, HeroStage, Nav, SITE_URL, STORE_URL } from '@/components/site';
+import {
+  Footer,
+  GITHUB_URL,
+  Grain,
+  HeroStage,
+  Nav,
+  PREVIEW_REQUEST_URL,
+  SITE_URL,
+  STORE_URL,
+} from '@/components/site';
 
 export const metadata: Metadata = {
   title: 'Pagehand — AI that works the current page',
   description:
-    'Pagehand is a Chrome side-panel AI that reads and automates the current page via the Chrome DevTools Protocol. Bring your own API key.',
+    'Pagehand is a Chrome side-panel AI that reads and automates the current page via the Chrome DevTools Protocol. Sign in and the model is handled for you — or bring your own API key.',
   alternates: {
     canonical: `${SITE_URL}/`,
     languages: { en: `${SITE_URL}/`, 'zh-CN': `${SITE_URL}/zh`, 'x-default': `${SITE_URL}/` },
@@ -15,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Pagehand',
     description:
-      'AI that reads and automates the current Chrome page via CDP. Side panel. Your keys. No cloud middleman.',
+      'AI that reads and automates the current Chrome page via CDP. Side panel. Sign in and go, or bring your own key.',
     type: 'website',
     locale: 'en_US',
   },
@@ -39,6 +48,9 @@ export default function Home() {
             <a className="hide-sm" href="#install">
               Install
             </a>
+            <a className="hide-sm" href="#modes">
+              Modes
+            </a>
             <a className="hide-sm" href="#how">
               How it works
             </a>
@@ -55,7 +67,7 @@ export default function Home() {
             <h1>AI that puts a hand on the current page.</h1>
             <p className="hero-lead">
               Side-panel copilot for Chrome. It reads the page, clicks, fills, and inspects console
-              &amp; network — through CDP, with your own API key.
+              &amp; network — through CDP. Sign in and the model is handled for you.
             </p>
             <div className="cta-row">
               <a className="btn btn-primary" id="install-cta" href={STORE_URL}>
@@ -66,7 +78,8 @@ export default function Home() {
               </a>
             </div>
             <p className="hero-meta">
-              Manifest V3 · chrome.debugger · BYO OpenAI / Anthropic / DeepSeek
+              Manifest V3 · chrome.debugger · Hosted model, or your own OpenAI / Anthropic /
+              DeepSeek key
             </p>
           </div>
         </div>
@@ -157,6 +170,55 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section" id="modes">
+          <div className="wrap">
+            <p className="section-label">Model access</p>
+            <h2>Sign in, or bring your own key.</h2>
+            <p className="section-lead">
+              Two ways to reach a model. The hands are the same either way — the agent loop and
+              every CDP tool run inside your browser.
+            </p>
+            <ul className="modes">
+              <li className="mode-default">
+                <p className="mode-tag">Hosted · default</p>
+                <h3>Sign in and go</h3>
+                <p>
+                  One email, no API key, no provider account. Pagehand routes the model call through
+                  its own endpoint and carries the bill.
+                </p>
+                <ul className="mode-points">
+                  <li>Nothing to configure on the first run</li>
+                  <li>Chat threads still stay in your browser</li>
+                  <li>In private preview while usage limits are built</li>
+                </ul>
+              </li>
+              <li>
+                <p className="mode-tag">Your key · advanced</p>
+                <h3>Bring your own key</h3>
+                <p>
+                  Point the panel at DeepSeek, OpenAI, Anthropic, or any OpenAI-compatible endpoint.
+                  Requests go straight from your browser to that provider.
+                </p>
+                <ul className="mode-points">
+                  <li>
+                    Key stays in <code>chrome.storage.local</code>
+                  </li>
+                  <li>Nothing touches Pagehand&rsquo;s servers</li>
+                  <li>Any model your provider offers, at its price</li>
+                </ul>
+              </li>
+            </ul>
+            <div className="note-box modes-note">
+              <p>
+                Hosted is in private preview: sign-in works, but requests are served to a short list
+                of accounts until quotas land.{' '}
+                <a href={PREVIEW_REQUEST_URL}>Email us for access →</a> Your own key works for
+                everyone today, no account needed.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="section" id="how">
           <div className="wrap">
             <p className="section-label">How it works</p>
@@ -174,10 +236,10 @@ export default function Home() {
                 </p>
               </li>
               <li>
-                <h3>Drop in a key</h3>
+                <h3>Sign in</h3>
                 <p>
-                  DeepSeek by default — OpenAI, Anthropic, or any OpenAI-compatible endpoint also
-                  work.
+                  One email and the model is handled for you — or switch to your own key in
+                  Settings.
                 </p>
               </li>
               <li>
@@ -231,13 +293,16 @@ export default function Home() {
         <section className="section" id="privacy">
           <div className="wrap">
             <p className="section-label">Privacy</p>
-            <h2>Your key never leaves your machine for us.</h2>
+            <h2>The hands stay local either way.</h2>
             <div className="privacy-box">
               <p>
-                Pagehand has no backend. API keys stay in <code>chrome.storage.local</code> and are
-                sent only to the model provider you choose. While attached, Chrome shows a “Pagehand
-                is debugging this browser” banner — that is intentional and cannot be hidden.{' '}
-                <a href="/privacy">Read the full privacy policy →</a>
+                Page content is read in your browser and chat threads never leave it. On hosted,
+                prompts and page context pass through <code>pagehand.app</code> to the model
+                provider — we meter what a request cost, not what it said. With your own key,
+                nothing touches our servers at all: it stays in{' '}
+                <code>chrome.storage.local</code> and goes straight to the provider. While attached,
+                Chrome shows a “Pagehand is debugging this browser” banner — that is intentional and
+                cannot be hidden. <a href="/privacy">Read the full privacy policy →</a>
               </p>
             </div>
           </div>
