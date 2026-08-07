@@ -1,4 +1,4 @@
-import { generateText, tool } from 'ai';
+import { streamText, tool, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import { ensureSession } from './context';
 import { getSettings } from '../storage/settingsStore';
@@ -17,6 +17,25 @@ import { clampJsonValue, clampText } from './limits';
 export const MAX_EXTRACT_SOURCE_CHARS = 40_000;
 export const MAX_EXTRACT_RESULT_CHARS = 8_000;
 const MAX_LINKS = 200;
+
+/**
+ * Two ceilings that exist because of where the hosted path runs.
+ *
+ * The hosted proxy caps itself at 60s per request, and this is the one call in
+ * the product that can approach it: 10K tokens of page text in, and a model
+ * free to emit rows until it runs out of things to say. Being killed at that
+ * ceiling is the worst available outcome — the client sees an opaque 504 *and*
+ * the usage frame never arrives, so tokens we were charged for go unbilled.
+ *
+ * So the call is bounded twice over on this side too: an output cap the
+ * provider enforces, and a deadline that fires with time to spare and produces
+ * a tool error the agent can act on ("ask for fewer fields") rather than a
+ * platform error it can only retry into the same wall. Both are worth keeping
+ * whatever the proxy's own limit is set to — 45s is already far longer than a
+ * healthy extraction takes.
+ */
+const MAX_EXTRACT_OUTPUT_TOKENS = 4_000;
+const EXTRACT_TIMEOUT_MS = 45_000;
 
 interface CollectedPage {
   url: string;
@@ -85,6 +104,48 @@ export function parseModelJson(raw: string): unknown | undefined {
   }
 }
 
+/**
+ * Streamed, not one-shot — the difference matters only on the hosted path, and
+ * there it matters twice.
+ *
+ * The proxy's non-streaming branch buffers the whole upstream body inside the
+ * function before answering, so a slow extraction spends its entire budget with
+ * nothing sent and then dies at the platform ceiling. The streaming branch
+ * answers as soon as upstream headers arrive and accounts for usage off a
+ * tee'd copy, which is the path the ledger is built on. The text is collected
+ * here, so the caller still gets one string and nothing else changes.
+ */
+async function runExtraction(
+  model: LanguageModel,
+  prompt: string,
+  abortSignal: AbortSignal | undefined,
+): Promise<string> {
+  // Whichever comes first: the agent's stop button or our own deadline.
+  const deadline = AbortSignal.timeout(EXTRACT_TIMEOUT_MS);
+  const signal = abortSignal ? AbortSignal.any([abortSignal, deadline]) : deadline;
+
+  const result = streamText({
+    model,
+    instructions: EXTRACT_SYSTEM,
+    prompt,
+    maxOutputTokens: MAX_EXTRACT_OUTPUT_TOKENS,
+    abortSignal: signal,
+  });
+
+  try {
+    return await result.text;
+  } catch (err) {
+    // The agent's own stop is not this tool's failure to explain; our deadline is.
+    if (deadline.aborted && abortSignal?.aborted !== true) {
+      throw new Error(
+        `Extraction timed out after ${EXTRACT_TIMEOUT_MS / 1000}s. The page is too large or the ` +
+          'instruction too broad — narrow it to fewer fields, or scroll to the section you need first.',
+      );
+    }
+    throw err;
+  }
+}
+
 export const extract_content = tool({
   description:
     'Reads the ENTIRE visible page text in one call and extracts what you ask for as compact JSON. ' +
@@ -115,12 +176,11 @@ export const extract_content = tool({
     const settings = await getSettings();
     if (!settings) throw new Error('No model configured — open settings first.');
 
-    const { text: answer } = await generateText({
-      model: resolveModel(settings),
-      instructions: EXTRACT_SYSTEM,
-      prompt: buildExtractionPrompt(instruction, result.value),
+    const answer = await runExtraction(
+      resolveModel(settings),
+      buildExtractionPrompt(instruction, result.value),
       abortSignal,
-    });
+    );
 
     const parsed = parseModelJson(answer);
     const { value, truncated } = clampJsonValue(parsed ?? answer, MAX_EXTRACT_RESULT_CHARS);
