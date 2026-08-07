@@ -146,3 +146,92 @@ test('passes a router error through with its status and body', async () => {
   assert.equal(res.status, 402);
   assert.match(await res.text(), /Insufficient credits/);
 });
+
+test('turns on prompt caching for Anthropic models, which do not do it alone', async () => {
+  // The failure this prevents is silent: without a breakpoint every Claude
+  // request succeeds and quietly pays full price for the whole resent history.
+  process.env.HOSTED_MODEL_ALLOWLIST = 'anthropic/claude-sonnet-5';
+  const { calls } = captureUpstream(() => jsonResponse({}));
+  await proxyChatCompletion(post({ model: 'anthropic/claude-sonnet-5', messages: [] }), deps());
+
+  assert.deepEqual(calls[0]?.body.cache_control, { type: 'ephemeral' });
+  delete process.env.HOSTED_MODEL_ALLOWLIST;
+});
+
+test('leaves self-caching models alone', async () => {
+  // DeepSeek and OpenAI cache without being asked, and an unrecognised root
+  // field is a 400 waiting to happen.
+  const { calls } = captureUpstream(() => jsonResponse({}));
+  await proxyChatCompletion(post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [] }), deps());
+
+  assert.equal('cache_control' in (calls[0]?.body ?? {}), false);
+});
+
+test('recovers the cost of a stream that ended without a usage frame', async () => {
+  // The stop button, which is not an edge case: a turn is up to a hundred steps
+  // and every one of them can be cut off mid-flight.
+  const seen: (number | undefined)[] = [];
+  const sources: string[] = [];
+  let call = 0;
+  mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+    call += 1;
+    if (String(input).includes('/generation')) {
+      return new Response(
+        JSON.stringify({ data: { total_cost: 0.00033, native_tokens_prompt: 4400, native_tokens_completion: 60 } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    // A stream that carries an id and then dies without ever reporting usage.
+    return new Response('data: {"id":"gen-cut","choices":[{"delta":{"content":"par"}}]}\n\n', {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+  });
+
+  const pending: Promise<unknown>[] = [];
+  const res = await proxyChatCompletion(
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [], stream: true }),
+    deps({
+      keepAlive: (work) => void pending.push(work),
+      onUsage: (usage, meta) => {
+        seen.push(usage?.cost);
+        sources.push(meta.source);
+      },
+    }),
+  );
+  await res.text();
+  await Promise.all(pending);
+
+  assert.deepEqual(seen, [0.00033]);
+  assert.deepEqual(sources, ['lookup']);
+  assert.ok(call >= 2, 'the lookup must actually have been made');
+});
+
+test('reports a missing cost as missing rather than as free', async () => {
+  const sources: string[] = [];
+  const seen: (number | undefined)[] = [];
+  mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+    if (String(input).includes('/generation')) return new Response('', { status: 404 });
+    return new Response('data: {"id":"gen-lost","choices":[{"delta":{}}]}\n\n', {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    });
+  });
+
+  const pending: Promise<unknown>[] = [];
+  const res = await proxyChatCompletion(
+    post({ model: 'deepseek/deepseek-v4-flash-0731', messages: [], stream: true }),
+    deps({
+      keepAlive: (work) => void pending.push(work),
+      onUsage: (usage, meta) => {
+        seen.push(usage?.cost);
+        sources.push(meta.source);
+      },
+    }),
+  );
+  await res.text();
+  await Promise.all(pending);
+
+  assert.deepEqual(seen, [undefined]);
+  assert.deepEqual(sources, ['missing']);
+});

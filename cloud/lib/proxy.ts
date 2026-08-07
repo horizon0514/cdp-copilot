@@ -18,18 +18,34 @@ import {
   allowedModels,
   routerApiKey,
 } from './config.ts';
-import { readUsage, type TokenUsage } from './usage.ts';
+import { lookupGeneration, readUsage, type TokenUsage } from './usage.ts';
 
 /** Guards against a client asking for a completion large enough to blow through
  * a period's budget in one call. */
 const MAX_COMPLETION_TOKENS = 16_000;
+
+/**
+ * How the cost was learned.
+ *
+ * `missing` is the only one that means unbilled tokens, so it is worth
+ * distinguishing from a recovered cost rather than folding both into a null.
+ */
+export type UsageSource = 'stream' | 'lookup' | 'missing';
+
+export interface UsageMeta {
+  userId: string;
+  model: string;
+  source: UsageSource;
+  /** The router's handle on this request; the only way to re-ask what it cost. */
+  generationId: string | null;
+}
 
 export interface ProxyDeps {
   userId: string;
   /** Keeps the runtime alive for work that outlives the response body. */
   keepAlive: (work: Promise<unknown>) => void;
   /** Where the ledger will hook in; Phase 1a only logs. */
-  onUsage: (usage: TokenUsage | null, meta: { userId: string; model: string }) => void;
+  onUsage: (usage: TokenUsage | null, meta: UsageMeta) => void;
 }
 
 interface ChatCompletionRequest {
@@ -38,8 +54,32 @@ interface ChatCompletionRequest {
   max_tokens?: unknown;
   max_completion_tokens?: unknown;
   stream_options?: Record<string, unknown>;
+  cache_control?: unknown;
   user?: unknown;
   [key: string]: unknown;
+}
+
+/**
+ * Turns prompt caching on for the one family that does not do it by itself.
+ *
+ * DeepSeek and OpenAI cache automatically; Anthropic does not — it caches only
+ * up to an explicit breakpoint, so a Claude model served without one pays full
+ * price for the entire resent history on every step. At ~100 steps per turn
+ * that is the difference between a viable Pro tier and an unaffordable one, and
+ * it fails silently: the requests all succeed, they just cost ten times more.
+ *
+ * The router's request-root form is the right one here. It applies the
+ * breakpoint to the last cacheable block and advances it as the conversation
+ * grows, which is exactly the shape of an agent loop — whereas the per-block
+ * form would need the extension to place breakpoints it cannot see the
+ * consequences of, and caps out at four.
+ *
+ * Gated on the model prefix rather than sent unconditionally: it is an
+ * Anthropic concept, and an unrecognised root field is a 400 waiting to happen
+ * on some other provider.
+ */
+function needsCacheBreakpoint(model: string): boolean {
+  return model.startsWith('anthropic/');
 }
 
 function errorResponse(status: number, code: string, message: string): Response {
@@ -98,6 +138,12 @@ export async function proxyChatCompletion(request: Request, deps: ProxyDeps): Pr
           stream_options: { ...(body.stream_options ?? {}), include_usage: true },
         }
       : {}),
+    // Set here rather than in the extension so it cannot be forgotten the day a
+    // Claude model joins the allowlist — the proxy knows the model name, and
+    // this is the only place that has to.
+    ...(needsCacheBreakpoint(model) && body.cache_control === undefined
+      ? { cache_control: { type: 'ephemeral' } }
+      : {}),
   };
   if (typeof body.max_tokens === 'number') {
     upstreamBody.max_tokens = Math.min(body.max_tokens, MAX_COMPLETION_TOKENS);
@@ -140,14 +186,21 @@ export async function proxyChatCompletion(request: Request, deps: ProxyDeps): Pr
 
   if (!streaming) {
     const text = await upstream.text();
+    let usage: TokenUsage | null = null;
+    let generationId: string | null = null;
     try {
-      deps.onUsage((JSON.parse(text) as { usage?: TokenUsage }).usage ?? null, {
-        userId: deps.userId,
-        model,
-      });
+      const parsed = JSON.parse(text) as { usage?: TokenUsage; id?: unknown };
+      usage = parsed.usage ?? null;
+      generationId = typeof parsed.id === 'string' ? parsed.id : null;
     } catch {
-      deps.onUsage(null, { userId: deps.userId, model });
+      // Unparseable body: nothing to bill from and no handle to recover with.
     }
+    deps.onUsage(usage, {
+      userId: deps.userId,
+      model,
+      source: usage ? 'stream' : 'missing',
+      generationId,
+    });
     return new Response(text, {
       status: upstream.status,
       headers: { 'content-type': 'application/json' },
@@ -158,9 +211,7 @@ export async function proxyChatCompletion(request: Request, deps: ProxyDeps): Pr
 
   // Start draining immediately rather than after the response completes: an
   // unread tee branch makes the tee buffer the whole response in memory.
-  const accounting = readUsage(toLedger)
-    .then((usage) => deps.onUsage(usage, { userId: deps.userId, model }))
-    .catch(() => deps.onUsage(null, { userId: deps.userId, model }));
+  const accounting = settleUsage(toLedger, deps, model);
   deps.keepAlive(accounting);
 
   return new Response(toClient, {
@@ -170,5 +221,40 @@ export async function proxyChatCompletion(request: Request, deps: ProxyDeps): Pr
       'cache-control': 'no-cache, no-transform',
       connection: 'keep-alive',
     },
+  });
+}
+
+/**
+ * Establishes what a streamed request cost, by whatever route works.
+ *
+ * The happy path is the usage frame that closes the stream. The path that
+ * matters is the other one: a turn is up to a hundred steps behind a stop
+ * button, so a step whose stream is torn down mid-flight is routine, not
+ * exceptional — and the router still charges us for what was generated before
+ * the tear-down. Without the lookup, "press stop" is a working way to use the
+ * hosted model for free, and it is not a subtle one to find.
+ *
+ * The lookup deliberately outlives the client: it runs inside `keepAlive`, and
+ * `lookupGeneration` uses a fetch with no abort signal attached.
+ */
+async function settleUsage(
+  toLedger: ReadableStream<Uint8Array>,
+  deps: ProxyDeps,
+  model: string,
+): Promise<void> {
+  const { usage, generationId } = await readUsage(toLedger);
+  if (usage) {
+    deps.onUsage(usage, { userId: deps.userId, model, source: 'stream', generationId });
+    return;
+  }
+
+  const recovered = generationId
+    ? await lookupGeneration(generationId, routerApiKey(), ROUTER_BASE_URL)
+    : null;
+  deps.onUsage(recovered, {
+    userId: deps.userId,
+    model,
+    source: recovered ? 'lookup' : 'missing',
+    generationId,
   });
 }

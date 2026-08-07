@@ -10,6 +10,14 @@
  * `cost` is the reason the ledger has no price table: the router states what it
  * charged us, so we record that instead of recomputing it from prices that could
  * silently go stale (PLAN-subscription §2).
+ *
+ * The final frame is not guaranteed to arrive. A turn runs up to a hundred steps
+ * behind a stop button, and a stopped step tears the stream down mid-flight — no
+ * usage frame, but the tokens generated up to that point were still charged to
+ * us (providers that support stream cancellation bill the partial completion;
+ * those that don't keep generating and bill the whole thing). That is why every
+ * stream also yields its generation id: it is the only handle left for asking
+ * the router after the fact what a torn-down request actually cost.
  */
 
 export interface TokenUsage {
@@ -35,6 +43,14 @@ export function toMicroUsd(usage: TokenUsage | null): number | null {
 
 interface UsageCarrier {
   usage?: TokenUsage | null;
+  id?: unknown;
+}
+
+/** What a drained stream tells us about what it cost. */
+export interface StreamAccounting {
+  usage: TokenUsage | null;
+  /** The router's generation id, for recovering cost when `usage` is null. */
+  generationId: string | null;
 }
 
 /** Cheap gate before JSON.parse — this runs over every frame of every stream,
@@ -43,10 +59,16 @@ function mightCarryUsage(line: string): boolean {
   return line.startsWith('data:') && line.includes('"usage":{');
 }
 
+function framePayload(line: string): string | null {
+  if (!line.startsWith('data:')) return null;
+  const payload = line.slice(line.indexOf(':') + 1).trim();
+  return payload === '[DONE]' || payload === '' ? null : payload;
+}
+
 function usageFromLine(line: string): TokenUsage | null {
   if (!mightCarryUsage(line)) return null;
-  const payload = line.slice(line.indexOf(':') + 1).trim();
-  if (payload === '[DONE]') return null;
+  const payload = framePayload(line);
+  if (payload === null) return null;
   try {
     const frame = JSON.parse(payload) as UsageCarrier;
     return frame.usage ?? null;
@@ -57,18 +79,45 @@ function usageFromLine(line: string): TokenUsage | null {
   }
 }
 
+function idFromLine(line: string): string | null {
+  // Same shape of cheap gate as mightCarryUsage, for the same reason.
+  if (!line.startsWith('data:') || !line.includes('"id":')) return null;
+  const payload = framePayload(line);
+  if (payload === null) return null;
+  try {
+    const frame = JSON.parse(payload) as UsageCarrier;
+    return typeof frame.id === 'string' && frame.id !== '' ? frame.id : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Drains an SSE stream and returns the last usage frame it saw.
+ * Drains an SSE stream, returning the last usage frame it saw and the generation
+ * id it was carrying.
  *
  * Must consume the stream to completion: this runs on one branch of a `tee()`,
  * and an unread branch makes the tee buffer the entire response in memory while
  * the client waits.
+ *
+ * A torn-down stream (the user pressed stop) makes the read throw. That is the
+ * case the generation id exists for, so the id gathered so far is returned
+ * rather than lost with the exception.
  */
-export async function readUsage(stream: ReadableStream<Uint8Array>): Promise<TokenUsage | null> {
+export async function readUsage(stream: ReadableStream<Uint8Array>): Promise<StreamAccounting> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let usage: TokenUsage | null = null;
+  let generationId: string | null = null;
+
+  const scan = (line: string) => {
+    const found = usageFromLine(line);
+    if (found) usage = found;
+    // The id is the same on every frame of a generation, so stop looking once
+    // it is known — this runs per line, per step, per turn.
+    if (generationId === null) generationId = idFromLine(line);
+  };
 
   try {
     for (;;) {
@@ -79,16 +128,90 @@ export async function readUsage(stream: ReadableStream<Uint8Array>): Promise<Tok
       const lines = buffer.split('\n');
       // The trailing fragment may be a partial frame — hold it for the next read.
       buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        const found = usageFromLine(line);
-        if (found) usage = found;
-      }
+      for (const line of lines) scan(line);
     }
-    const tail = usageFromLine(buffer);
-    if (tail) usage = tail;
+    scan(buffer);
+  } catch {
+    // An aborted upstream rejects the pending read. Everything scanned before
+    // that point still stands, and the id is the whole reason we care.
   } finally {
     reader.releaseLock();
   }
 
-  return usage;
+  return { usage, generationId };
+}
+
+/** Shape of `GET /generation`; the router wraps the record in `data`. */
+interface GenerationRecord {
+  total_cost?: number;
+  tokens_prompt?: number;
+  tokens_completion?: number;
+  native_tokens_prompt?: number;
+  native_tokens_completion?: number;
+  native_tokens_cached?: number;
+}
+
+function usageFromGeneration(record: GenerationRecord): TokenUsage | null {
+  if (typeof record.total_cost !== 'number') return null;
+  const prompt = record.native_tokens_prompt ?? record.tokens_prompt ?? 0;
+  const completion = record.native_tokens_completion ?? record.tokens_completion ?? 0;
+  return {
+    prompt_tokens: prompt,
+    completion_tokens: completion,
+    total_tokens: prompt + completion,
+    ...(typeof record.native_tokens_cached === 'number'
+      ? { prompt_tokens_details: { cached_tokens: record.native_tokens_cached } }
+      : {}),
+    cost: record.total_cost,
+  };
+}
+
+export interface LookupOptions {
+  attempts?: number;
+  /** Injected in tests; production waits for real. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+const LOOKUP_ATTEMPTS = 3;
+const LOOKUP_BACKOFF_MS: readonly number[] = [300, 900];
+const LAST_BACKOFF_MS = 900;
+
+/**
+ * Asks the router what a generation cost, for the streams that ended without
+ * saying so.
+ *
+ * Deliberately never passes the caller's abort signal: this exists precisely
+ * because the caller went away, so a fetch tied to their signal would be dead on
+ * arrival. It also retries — the record is written as the generation settles,
+ * so a lookup fired the instant a stream tore down can arrive first and 404.
+ */
+export async function lookupGeneration(
+  generationId: string,
+  apiKey: string,
+  baseUrl: string,
+  { attempts = LOOKUP_ATTEMPTS, sleep = defaultSleep }: LookupOptions = {},
+): Promise<TokenUsage | null> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      await sleep(LOOKUP_BACKOFF_MS[attempt - 1] ?? LAST_BACKOFF_MS);
+    }
+    try {
+      const response = await fetch(
+        `${baseUrl}/generation?id=${encodeURIComponent(generationId)}`,
+        { headers: { authorization: `Bearer ${apiKey}` } },
+      );
+      if (response.status === 404) continue; // Not settled yet.
+      if (!response.ok) return null;
+      const body = (await response.json()) as { data?: GenerationRecord } & GenerationRecord;
+      const usage = usageFromGeneration(body.data ?? body);
+      if (usage) return usage;
+    } catch {
+      // Network failure on the recovery path; the next attempt may do better.
+    }
+  }
+  return null;
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
