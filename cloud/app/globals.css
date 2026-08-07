@@ -193,50 +193,257 @@ html[lang^="zh"] .section-lead {
   to { transform: translate3d(-56px, -56px, 0); }
 }
 
-.hero-tree {
+/* The mock side panel. Sized, placed and built like the real thing — docked
+   right, narrow, same parts in the same order — so the picture is a promise the
+   install can keep. */
+.hero-panel {
   position: absolute;
-  right: max(-2rem, calc(50% - 36rem));
+  right: max(2rem, calc(50% - 33rem));
   top: 12%;
-  width: min(48vw, 520px);
-  height: 70%;
-  font-family: var(--font-mono);
-  font-size: clamp(11px, 1.1vw, 13px);
-  line-height: 1.7;
-  color: rgba(232, 239, 230, 0.28);
-  white-space: pre;
-  user-select: none;
-  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 72%, transparent);
-  animation: fade-in 1.2s ease both 0.15s;
+  width: min(46vw, 396px);
+  padding: 0.9rem 0 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: rgba(14, 19, 16, 0.86);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: rise 0.9s ease both 0.2s;
+  font-size: 0.85rem;
 }
 
-.hero-cursor {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--mark);
+.hero-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.9rem 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.hero-panel-head img {
   border-radius: 50%;
-  box-shadow: 0 0 0 6px var(--glow);
-  right: max(8%, calc(50% - 10rem));
-  top: 42%;
-  animation: tap 2.8s ease-in-out infinite;
 }
 
-.hero-cursor::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  width: 14px;
-  height: 18px;
+.hero-bound {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--fog);
+  font-size: 0.76rem;
+}
+
+.hero-bound-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--mark);
-  clip-path: polygon(0 0, 100% 70%, 55% 70%, 75% 100%, 55% 100%, 35% 70%, 0 70%);
-  opacity: 0.9;
 }
 
-@keyframes tap {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.85; }
-  45% { transform: translate(-28px, 36px) scale(0.92); opacity: 1; }
-  55% { transform: translate(-28px, 36px) scale(0.88); }
+.hero-thread {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  min-height: 15.5rem;
+  align-content: start;
+}
+
+/*
+ * The panel replays one turn on a 12s loop: the question arrives, each tool row
+ * lands, the last one finishes, then the answer.
+ *
+ * Every element shares that 12s clock and expresses its own moment as
+ * percentages of it, rather than using `animation-delay`. A delay only offsets
+ * the *first* iteration — on the second pass a delayed element would fire
+ * immediately and the sequence would collapse into everything at once.
+ */
+.hero-ask {
+  justify-self: end;
+  max-width: 88%;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px 12px 4px 12px;
+  background: rgba(214, 242, 92, 0.14);
+  border: 1px solid rgba(214, 242, 92, 0.24);
+  color: var(--paper);
+  line-height: 1.45;
+  animation: hero-ask-in 12s ease-in-out infinite;
+}
+
+@keyframes hero-ask-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  4%, 93% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+.hero-tools {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.hero-tool {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink-2);
+  opacity: 0;
+}
+
+.hero-tool-chevron {
+  color: var(--fog);
+  font-size: 0.8rem;
+}
+
+.hero-tool code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--paper-dim);
+}
+
+.hero-tool-note {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--fog);
+  font-size: 0.72rem;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Sized to the widest label so the rows line up and the last one does not
+     jump a few pixels wider when it swaps running → done. */
+  min-width: 4.4rem;
+  gap: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 242, 92, 0.28);
+  color: var(--mark-deep);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.hero-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Both badges occupy the same cell so the row does not resize when the last
+   tool flips from running to done. */
+.hero-badge-swap {
+  display: grid;
+}
+
+.hero-badge-swap > .hero-badge {
+  grid-area: 1 / 1;
+}
+
+.hero-badge-running {
+  border-color: rgba(232, 239, 230, 0.2);
+  color: var(--fog);
+  animation: hero-badge-running 12s ease-in-out infinite;
+}
+
+.hero-badge-done {
+  animation: hero-badge-done 12s ease-in-out infinite;
+}
+
+@keyframes hero-badge-running {
+  0%, 62% { opacity: 1; }
+  66%, 100% { opacity: 0; }
+}
+
+@keyframes hero-badge-done {
+  0%, 62% { opacity: 0; }
+  66%, 93% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.hero-tool-1 { animation: hero-tool-1 12s ease-in-out infinite; }
+.hero-tool-2 { animation: hero-tool-2 12s ease-in-out infinite; }
+.hero-tool-3 { animation: hero-tool-3 12s ease-in-out infinite; }
+
+@keyframes hero-tool-1 {
+  0%, 14% { opacity: 0; transform: translateY(6px); }
+  19%, 93% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+@keyframes hero-tool-2 {
+  0%, 30% { opacity: 0; transform: translateY(6px); }
+  35%, 93% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+@keyframes hero-tool-3 {
+  0%, 46% { opacity: 0; transform: translateY(6px); }
+  51%, 93% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+.hero-reply {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px 12px 12px 4px;
+  background: var(--ink-2);
+  color: var(--paper-dim);
+  line-height: 1.5;
+  opacity: 0;
+  animation: hero-reply-in 12s ease-in-out infinite;
+}
+
+@keyframes hero-reply-in {
+  0%, 70% { opacity: 0; transform: translateY(6px); }
+  75%, 93% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+.hero-composer {
+  margin: 0;
+  padding: 0.7rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--line);
+  color: rgba(154, 168, 156, 0.75);
+  font-size: 0.78rem;
+}
+
+/* A loop in the corner of the eye is exactly what this setting is for: hold the
+   finished turn instead, which still says everything the animation says. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-panel,
+  .hero-ask,
+  .hero-tool,
+  .hero-reply,
+  .hero-badge-running,
+  .hero-badge-done,
+  .hero-grid {
+    animation: none;
+  }
+
+  .hero-tool,
+  .hero-reply {
+    opacity: 1;
+  }
+
+  .hero-badge-running {
+    opacity: 0;
+  }
 }
 
 .hero-content {
@@ -256,10 +463,6 @@ html[lang^="zh"] .section-lead {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
 
 .hero-brand {
   display: inline-flex;
@@ -517,6 +720,51 @@ html[lang^="zh"] .section-lead {
   font-size: 0.95rem;
 }
 
+/* ——— Use cases ——— */
+/* The first thing under the hero, because "what do I use this for" is the
+   question a visitor actually arrives with. Every card ends in a line they
+   could paste into the panel — a capability described is abstract, a sentence
+   you could type is not. */
+.scenarios {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.scenarios > li {
+  padding: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+.scenarios h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.scenarios > li > p {
+  margin: 0;
+  color: var(--fog);
+  font-size: 0.95rem;
+}
+
+.scenario-ask {
+  margin: 1.1rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 2px solid var(--mark-deep);
+  border-radius: 0 8px 8px 0;
+  background: var(--ink-3);
+  color: var(--paper-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 /* ——— Modes ——— */
 /* Two cards, not a table: the choice is "which one am I", and a table invites a
    feature-by-feature comparison of two things that differ in one respect. */
@@ -686,9 +934,27 @@ html[lang^="zh"] .section-lead {
 }
 
 @media (max-width: 720px) {
-  .hero-tree,
-  .hero-cursor {
+  /* The panel would sit under the headline at this width, and a mock of the
+     product competing with the sentence that explains it helps nobody. */
+  .hero-panel {
     display: none;
+  }
+
+  /* The wordmark's clamp floors at 2.6rem, and at that size the word plus the
+     icon is wider than a phone. `.hero` hides the overflow, so the first thing
+     on the page was the product name with its last letter cut off.
+     `min()` with no floor is the point: "Pagehand" in Syne 800 measures about
+     7.9× its font-size, so anything that stops scaling with the viewport
+     eventually overflows it again on a narrower one. */
+  .hero-brand {
+    gap: 0.6rem;
+    max-width: 100%;
+    font-size: min(2.6rem, 9vw);
+  }
+
+  .hero-brand img {
+    width: min(2.4rem, 8vw);
+    height: min(2.4rem, 8vw);
   }
 
   .hero-content {
@@ -701,7 +967,8 @@ html[lang^="zh"] .section-lead {
     gap: 0.4rem;
   }
 
-  .modes {
+  .modes,
+  .scenarios {
     grid-template-columns: 1fr;
   }
 

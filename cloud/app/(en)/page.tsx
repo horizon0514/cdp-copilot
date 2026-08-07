@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = {
   title: 'Pagehand — AI that works the current page',
   description:
-    'Pagehand is a Chrome side-panel AI that reads and automates the current page via the Chrome DevTools Protocol. Sign in and the model is handled for you — or bring your own API key.',
+    "Pagehand is an AI in Chrome's side panel that works on the page you are already on — summarize it, fill the form, click through the flow, or find out what's broken. Sign in and go, or bring your own API key.",
   alternates: {
     canonical: `${SITE_URL}/`,
     languages: { en: `${SITE_URL}/`, 'zh-CN': `${SITE_URL}/zh`, 'x-default': `${SITE_URL}/` },
@@ -37,7 +37,19 @@ export default function Home() {
       <Grain />
 
       <header className="hero">
-        <HeroStage />
+        <HeroStage
+          bound="Bound · help.acme.com"
+          ask="Find the refund policy on this site and give me the short version."
+          tools={[
+            { name: 'take_snapshot', note: '42 nodes' },
+            { name: 'click', note: 'link “Help Centre”' },
+            { name: 'extract_content', note: 'Refunds & Returns' },
+          ]}
+          doneLabel="Done"
+          runningLabel="Running"
+          reply="Three things: 30 days from delivery, unopened items only, and refunds land 5–7 days after they receive it."
+          placeholder="Ask anything — @ to reference a tab"
+        />
 
         <div className="wrap">
           <Nav
@@ -45,14 +57,14 @@ export default function Home() {
             brandHref="/"
             langSwitch={<LangSwitch label="Language" current="en" enHref="/" zhHref="/zh" />}
           >
+            <a className="hide-sm" href="#uses">
+              What it does
+            </a>
             <a className="hide-sm" href="#install">
               Install
             </a>
             <a className="hide-sm" href="#modes">
               Modes
-            </a>
-            <a className="hide-sm" href="#how">
-              How it works
             </a>
             <a className="hide-sm" href="#privacy">
               Privacy
@@ -66,26 +78,79 @@ export default function Home() {
             </p>
             <h1>AI that puts a hand on the current page.</h1>
             <p className="hero-lead">
-              Side-panel copilot for Chrome. It reads the page, clicks, fills, and inspects console
-              &amp; network — through CDP. Sign in and the model is handled for you.
+              Pagehand opens in Chrome&rsquo;s side panel and works on the page you are already
+              looking at — reading it, filling it in, clicking through it. You ask in plain words;
+              it does the part you&rsquo;d rather not.
             </p>
             <div className="cta-row">
               <a className="btn btn-primary" id="install-cta" href={STORE_URL}>
                 Add to Chrome
               </a>
-              <a className="btn btn-ghost" href="#install">
-                How to install
+              <a className="btn btn-ghost" href="#uses">
+                See what it does
               </a>
             </div>
             <p className="hero-meta">
-              Manifest V3 · chrome.debugger · Hosted model, or your own OpenAI / Anthropic /
-              DeepSeek key
+              Works on any page · Sign in and go · Your chats stay in your browser
             </p>
           </div>
         </div>
       </header>
 
       <main>
+        <section className="section" id="uses">
+          <div className="wrap">
+            <p className="section-label">What it does</p>
+            <h2>Four things people ask it for.</h2>
+            <p className="section-lead">
+              Open the panel on any page and type. Every line below is something you could paste in
+              as it stands.
+            </p>
+            <ul className="scenarios">
+              <li>
+                <h3>Read this page for me</h3>
+                <p>
+                  Long article, dense report, a table you don&rsquo;t want to retype — it reads what
+                  is actually on screen, not a search result about it.
+                </p>
+                <p className="scenario-ask">
+                  “Summarize this report and pull out the three numbers that matter.”
+                </p>
+              </li>
+              <li>
+                <h3>Do it for me</h3>
+                <p>
+                  Forms, checkboxes, multi-step flows. It works in the tab you already have open, so
+                  anything you are signed in to, it can reach.
+                </p>
+                <p className="scenario-ask">
+                  “Fill this form with the same details as last time, and stop before submitting.”
+                </p>
+              </li>
+              <li>
+                <h3>Compare what&rsquo;s in my tabs</h3>
+                <p>
+                  Type <strong>@</strong> to point it at other tabs you have open, and it reads them
+                  together instead of one at a time.
+                </p>
+                <p className="scenario-ask">
+                  “@ these three listings — which is cheapest once shipping is included?”
+                </p>
+              </li>
+              <li>
+                <h3>Tell me why this page is broken</h3>
+                <p>
+                  For the developers in the room: console errors and network requests, read and
+                  explained without you opening DevTools.
+                </p>
+                <p className="scenario-ask">
+                  “Clicking Save does nothing — what request fails, and what did it return?”
+                </p>
+              </li>
+            </ul>
+          </div>
+        </section>
+
         <section className="section" id="install">
           <div className="wrap">
             <p className="section-label">Install</p>
@@ -112,8 +177,8 @@ export default function Home() {
               <li>
                 <h3>Open the side panel</h3>
                 <p>
-                  Click the Pagehand icon on any page. Sign in — or switch to your own API key — and
-                  start asking.
+                  Click the Pagehand icon on any page — or press <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+
+                  <kbd>Shift</kbd>+<kbd>K</kbd>. Sign in, and start asking.
                 </p>
               </li>
             </ol>
@@ -219,47 +284,35 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="section" id="how">
+        <section className="section" id="privacy">
           <div className="wrap">
-            <p className="section-label">How it works</p>
-            <h2>The side panel owns the debugger.</h2>
-            <p className="section-lead">
-              No Node sidecar. No MCP bridge. Pagehand talks Chrome DevTools Protocol from inside
-              the extension and drives the page you are looking at.
-            </p>
-            <ol className="steps">
-              <li>
-                <h3>Open the panel</h3>
-                <p>
-                  <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>, or click the toolbar
-                  icon.
-                </p>
-              </li>
-              <li>
-                <h3>Sign in</h3>
-                <p>
-                  One email and the model is handled for you — or switch to your own key in
-                  Settings.
-                </p>
-              </li>
-              <li>
-                <h3>Ask it to act</h3>
-                <p>
-                  Summarize, click, fill forms, chase console errors, or walk a multi-step flow on
-                  the live page.
-                </p>
-              </li>
-            </ol>
+            <p className="section-label">Privacy</p>
+            <h2>It reads the page. Here is the whole of it.</h2>
+            <div className="privacy-box">
+              <p>
+                Pagehand looks at a tab when you ask it something, and only that tab. What it reads
+                goes to the AI model answering you and nowhere else — we never store what a page
+                said, and your chat history stays in your browser. While it is working, Chrome puts
+                a “Pagehand is debugging this browser” bar across the top of the window: that is
+                Chrome telling you the truth about what an extension is doing, we are not allowed to
+                hide it, and it goes away when you close the panel.{' '}
+                <a href="/privacy">Read the full privacy policy →</a>
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="section" id="tools">
+        {/* Last, and kept. It is why the clicking works at all, and the people
+            who ask "is this a DOM scraper" will scroll for it — but it answers a
+            question most visitors have not thought to ask yet. */}
+        <section className="section" id="how">
           <div className="wrap">
-            <p className="section-label">Capabilities</p>
+            <p className="section-label">Under the hood</p>
             <h2>Same protocol Puppeteer speaks.</h2>
             <p className="section-lead">
-              Accessibility snapshots, input, navigation, screenshots, console and network —
-              implemented against CDP domains, not a brittle DOM scraper.
+              No Node sidecar, no MCP bridge, no DOM scraping. The side panel holds the agent loop
+              and speaks Chrome DevTools Protocol directly, through <code>chrome.debugger</code> on
+              Manifest V3.
             </p>
             <ul className="feature-list">
               <li>
@@ -287,24 +340,10 @@ export default function Home() {
                 <p>Capture what the page looks like and keep it in the chat thread.</p>
               </li>
             </ul>
-          </div>
-        </section>
-
-        <section className="section" id="privacy">
-          <div className="wrap">
-            <p className="section-label">Privacy</p>
-            <h2>The hands stay local either way.</h2>
-            <div className="privacy-box">
-              <p>
-                Page content is read in your browser and chat threads never leave it. On hosted,
-                prompts and page context pass through <code>pagehand.app</code> to the model
-                provider — we meter what a request cost, not what it said. With your own key,
-                nothing touches our servers at all: it stays in{' '}
-                <code>chrome.storage.local</code> and goes straight to the provider. While attached,
-                Chrome shows a “Pagehand is debugging this browser” banner — that is intentional and
-                cannot be hidden. <a href="/privacy">Read the full privacy policy →</a>
-              </p>
-            </div>
+            <p className="install-note">
+              The full tool list, and the code behind it, are on{' '}
+              <a href={GITHUB_URL}>GitHub</a>.
+            </p>
           </div>
         </section>
       </main>

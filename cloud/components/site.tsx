@@ -91,27 +91,76 @@ export function Footer({ navLabel, children }: { navLabel: string; children: Rea
   );
 }
 
-/** The accessibility-tree mock behind the hero. Identical in both locales —
- * it is meant to look like Pagehand's own snapshot output, not like prose. */
-export function HeroStage() {
+/**
+ * The mock side panel behind the hero, replaying one turn on a loop.
+ *
+ * It used to be a raw accessibility tree — Pagehand's own snapshot output, which
+ * showed the machinery to anyone who could read it and nothing at all to anyone
+ * who couldn't. A visitor's first question is "what does this do for me", and a
+ * `RootWebArea` node does not answer it.
+ *
+ * Built to match the real panel part for part — brand header, bound-tab line,
+ * question on the right, collapsed tool rows with a status badge, the answer,
+ * the composer — because the picture is a promise about what installing gets
+ * you. The strings are the panel's own (`src/lib/i18n`), which is also why they
+ * are passed in per locale rather than hardcoded here.
+ */
+export function HeroStage({
+  bound,
+  ask,
+  tools,
+  doneLabel,
+  runningLabel,
+  reply,
+  placeholder,
+}: {
+  bound: string;
+  ask: string;
+  tools: { name: string; note: string }[];
+  doneLabel: string;
+  runningLabel: string;
+  reply: string;
+  placeholder: string;
+}) {
   return (
     <div className="hero-stage" aria-hidden="true">
       <div className="hero-grid" />
-      <pre className="hero-tree">{`RootWebArea "Checkout"
-  banner
-    link "Pagehand"
-    navigation
-  main
-    heading "Order summary"
-    StaticText "$48.00"
-    form
-      textbox "Email"  ← focus
-      textbox "Card"
-      button "Pay now"
-  complementary
-    StaticText "Console · 0 errors"
-    StaticText "Network · 12 req"`}</pre>
-      <div className="hero-cursor" />
+      <div className="hero-panel">
+        <div className="hero-panel-head">
+          <img src="/icon.png" alt="" width={18} height={18} />
+          Pagehand
+        </div>
+        <p className="hero-bound">
+          <span className="hero-bound-dot" />
+          {bound}
+        </p>
+
+        <div className="hero-thread">
+          <p className="hero-ask">{ask}</p>
+          <ul className="hero-tools">
+            {tools.map((tool, i) => (
+              <li key={tool.name + tool.note} className={`hero-tool hero-tool-${i + 1}`}>
+                <span className="hero-tool-chevron">›</span>
+                <code>{tool.name}</code>
+                <span className="hero-tool-note">{tool.note}</span>
+                {/* The last row is the one still working when it lands, so it
+                    carries both badges and swaps them mid-loop. */}
+                {i === tools.length - 1 ? (
+                  <span className="hero-badge-swap">
+                    <span className="hero-badge hero-badge-running">{runningLabel}</span>
+                    <span className="hero-badge hero-badge-done">{doneLabel}</span>
+                  </span>
+                ) : (
+                  <span className="hero-badge">{doneLabel}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="hero-reply">{reply}</p>
+        </div>
+
+        <p className="hero-composer">{placeholder}</p>
+      </div>
     </div>
   );
 }
