@@ -79,7 +79,11 @@ Deploys via **Vercel Git integration** (not GitHub Actions):
 
 1. In the [Vercel dashboard](https://vercel.com), connect this GitHub repo
 2. Set **Root Directory** to `cloud`
-3. Prefer enabling skip-deploy when changes are outside that root (so extension-only commits don’t redeploy the site)
+3. Leave **Ignored Build Step** empty. The obvious setting here —
+   skip when the changes are outside the root directory — compares only the head
+   commit, so a push whose last commit misses `cloud/` is skipped however much
+   the rest of the range touched it. That cost three silent non-deploys before
+   it was spotted; a build is ~9s. See [`cloud/README.md`](cloud/README.md).
 
 After that:
 

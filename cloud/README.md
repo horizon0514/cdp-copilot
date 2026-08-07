@@ -31,7 +31,7 @@ The marketing site was four static HTML files under `website/` until it moved in
 here. Merging them means `/pricing` and `/account` inherit the same
 `app/globals.css` the landing page uses, rather than becoming a second design.
 
-### Pushing to `main` does not reliably deploy
+### Pushing to `main` deploys again — the skip rule is gone
 
 Three consecutive pushes on 2026-08-06 shipped nothing, in two different ways:
 
@@ -43,9 +43,18 @@ Three consecutive pushes on 2026-08-06 shipped nothing, in two different ways:
 - Head commit touched `cloud/README.md`: **no deployment was created at all**,
   still nothing 15 minutes later, with the commit status stuck at `pending`.
 
-The second case has no explanation yet, which is the point of this section: do
-not assume a push shipped. Symptom is always the same — production serves the
-old copy and `x-vercel-cache: HIT` reports an `age` older than the push.
+**Cause of the first, fixed 2026-08-07.** The project's Ignored Build Step was
+`git diff --quiet HEAD^ HEAD -- .` — a one-commit comparison, where exit 0 means
+skip. A push whose *head* commit misses `cloud/` was skipped no matter what the
+rest of the range touched, which is the normal shape of a push. The setting is
+now cleared, so **every push to `main` builds.** A build is ~9s; the saving was
+never worth a deploy that silently doesn't happen.
+
+**The second case is still unexplained.** `cloud/README.md` is inside the root
+directory, so the skip rule would have let it through — it was something else.
+Until it recurs and can be diagnosed, the habit below stays: do not assume a
+push shipped. Symptom is always the same — production serves the old copy and
+`x-vercel-cache: HIT` reports an `age` older than the push.
 
 Check, and deploy by hand when it didn't:
 
