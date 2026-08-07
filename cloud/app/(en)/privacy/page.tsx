@@ -24,6 +24,7 @@ export default function Privacy() {
         <Nav
           navLabel="Primary"
           brandHref="/"
+          githubLabel="Pagehand on GitHub"
           langSwitch={
             <LangSwitch label="Language" current="en" enHref="/privacy" zhHref="/zh/privacy" />
           }

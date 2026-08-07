@@ -52,6 +52,7 @@ export default function ZhHome() {
           <Nav
             navLabel="主导航"
             brandHref="/zh"
+            githubLabel="在 GitHub 上查看 Pagehand"
             langSwitch={<LangSwitch label="语言" current="zh" enHref="/" zhHref="/zh" />}
           >
             <a className="hide-sm" href="#uses">
@@ -61,7 +62,7 @@ export default function ZhHome() {
               安装
             </a>
             <a className="hide-sm" href="#modes">
-              两种模式
+              模型与密钥
             </a>
             <a className="hide-sm" href="#privacy">
               隐私

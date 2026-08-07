@@ -24,6 +24,7 @@ export default function ZhPrivacy() {
         <Nav
           navLabel="主导航"
           brandHref="/zh"
+          githubLabel="在 GitHub 上查看 Pagehand"
           langSwitch={<LangSwitch label="语言" current="zh" enHref="/privacy" zhHref="/zh/privacy" />}
         >
           <a href="/zh">首页</a>

@@ -55,6 +55,7 @@ export default function Home() {
           <Nav
             navLabel="Primary"
             brandHref="/"
+            githubLabel="Pagehand on GitHub"
             langSwitch={<LangSwitch label="Language" current="en" enHref="/" zhHref="/zh" />}
           >
             <a className="hide-sm" href="#uses">
@@ -64,7 +65,7 @@ export default function Home() {
               Install
             </a>
             <a className="hide-sm" href="#modes">
-              Modes
+              Model &amp; keys
             </a>
             <a className="hide-sm" href="#privacy">
               Privacy

@@ -109,6 +109,14 @@ img {
   color: var(--paper);
 }
 
+/* Optically level with the text links beside it: a 17px glyph on a 0.9rem
+   baseline sits high without the flex centring. */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--fog);
+}
+
 .lang-switch {
   display: inline-flex;
   align-items: center;
