@@ -10,14 +10,15 @@ import {
 } from 'ai';
 import { tools, CONTROL_TASK_TOOL } from '../tools';
 import { resolveModel } from './providers';
-import { Settings } from '../storage/schema';
+import { isHosted, Settings, type ProviderId } from '../storage/schema';
 import { dropDanglingToolCalls, elideStaleSnapshots, sanitizeModelMessages } from './sanitizeMessages';
 import { compactHistory } from './compactHistory';
+import { composeLiveNote, stripLiveNotes } from './liveNote';
 import { reflectionNote } from './reflection';
 import { getActiveLedger } from '../ledger/activeLedger';
 import { formatLedgerDigest } from '../ledger/digest';
 import { isLedgerEmpty } from '../ledger/types';
-import { orchestrateAgentEvents, type AgentMode } from './orchestrator';
+import { DEFAULT_MAX_EPISODES, orchestrateAgentEvents, type AgentMode } from './orchestrator';
 
 /** Assistant + tool messages produced by a single streamText call. */
 export type TurnResponseMessage = AssistantModelMessage | ToolModelMessage;
@@ -72,8 +73,9 @@ before moving on — do not leave every step pending while you accumulate findin
 over replace_plan unless the steps themselves need to change. The moment you discover something the task
 asked for, upsert it as a finding — results that exist only in prose are lost when the conversation is
 trimmed. Before detours and at the end of each work chunk, add a note with where you left off.
-The current ledger state appears in these instructions each step; treat it — not the conversation — as
-the source of truth for progress, and never re-collect a finding already saved. Trivial single-step
+The current ledger state is appended to the end of the conversation each step, marked as live task state;
+treat it — not the conversation — as the source of truth for progress, and never re-collect a finding
+already saved. Trivial single-step
 requests don't need the ledger.
 
 When saving findings, require direct evidence that meets the goal's criteria — do not stretch ambiguous
@@ -108,6 +110,43 @@ summary, and a handoff note for the root planner.`;
  * to get cut off mid-work.
  */
 export const MAX_STEPS = 100;
+
+/**
+ * The same guard, lowered for the path where we pay.
+ *
+ * On BYOK a runaway turn spends the user's own money against their own key, and
+ * they can watch it happen. On the hosted path it spends ours, and the limits
+ * multiply: the root loop can run `MAX_STEPS` and then dispatch episodes that
+ * each run `MAX_STEPS` again. At 100 × 8 that is up to ~900 model calls from a
+ * single user message — around $0.45 at measured flash-class rates (§3.2.1),
+ * or a tenth of a month's allowance in one sentence.
+ *
+ * 60 × 5 puts the same worst case near 360 calls (~$0.18) while staying well
+ * clear of the collection tasks that motivated raising this from 40 in the
+ * first place — those settled around 50 steps, and an episode boundary now
+ * exists for the ones that don't.
+ *
+ * This is a blast-radius limit, not the budget. The hard per-period ceiling in
+ * PLAN-subscription §4.4 is what actually bounds spend; this only stops one
+ * turn from eating a visible share of it.
+ */
+export const HOSTED_MAX_STEPS = 60;
+export const HOSTED_MAX_EPISODES = 5;
+
+export interface TurnLimits {
+  maxSteps: number;
+  maxEpisodes: number;
+}
+
+/**
+ * Who pays decides how far a single turn may run. Split out from `runAgentTurn`
+ * so the policy can be asserted without standing up a provider.
+ */
+export function turnLimits(provider: ProviderId): TurnLimits {
+  return isHosted(provider)
+    ? { maxSteps: HOSTED_MAX_STEPS, maxEpisodes: HOSTED_MAX_EPISODES }
+    : { maxSteps: MAX_STEPS, maxEpisodes: DEFAULT_MAX_EPISODES };
+}
 
 export function buildMessages(history: ModelMessage[], userMessage: string): ModelMessage[] {
   return [...history, { role: 'user', content: userMessage }];
@@ -180,28 +219,25 @@ export async function* streamAgentEvents(
       // carries forward, so each step elides only what the last one added.
       //
       // Everything that keeps a long turn alive converges here, rebuilt each
-      // step. Messages get snapshot elision then context compaction; the
-      // instructions get the ledger digest and any reflection note. Both the
-      // digest and the reflection ride in the instructions rather than as
-      // messages: instructions are rebuilt every step (always current, never
-      // duplicated in history) and can't break the strict user/assistant/tool
-      // alternation providers enforce.
+      // step: snapshot elision and context compaction on the messages, then the
+      // ledger digest and any reflection note appended as a live note at the
+      // end (see liveNote.ts for why the end and not the instructions).
+      //
+      // `instructions` is deliberately never rebuilt. It sits at the front of
+      // the prompt, where every provider's prefix cache starts, so anything
+      // volatile in it costs the whole cache on the step it changes.
       prepareStep: ({ messages: stepMessages, stepNumber, responseMessages }) => {
-        const trimmed = compactHistory(elideStaleSnapshots(stepMessages));
+        const trimmed = compactHistory(elideStaleSnapshots(stripLiveNotes(stepMessages)));
 
-        const parts = [instructions];
-        const digest = extraInstructions?.();
-        if (digest) parts.push(digest);
         // Stall detection reads responseMessages, which compaction never
         // touches, so the real action sequence stays visible to it.
-        const reflection = reflectionNote(stepNumber, responseMessages);
-        if (reflection) parts.push(reflection);
+        const note = composeLiveNote([
+          extraInstructions?.(),
+          reflectionNote(stepNumber, responseMessages),
+        ]);
 
         return {
-          messages: trimmed,
-          // Always set: the override carries forward, so a step with nothing
-          // extra must explicitly fall back to the bare system prompt.
-          instructions: parts.join('\n\n'),
+          messages: note ? [...trimmed, note] : trimmed,
           ...(activeTools ? { activeTools: activeTools() } : {}),
         };
       },
@@ -323,9 +359,11 @@ export async function* runAgentTurn(
     yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
     return;
   }
+  const limits = turnLimits(settings.provider);
   const run = (messages: ModelMessage[], mode: AgentMode) =>
     streamAgentEvents(model, messages, {
       abortSignal,
+      maxSteps: limits.maxSteps,
       instructions: mode === 'episode' ? EPISODE_PROMPT : SYSTEM_PROMPT,
       activeTools:
         mode === 'root'
@@ -343,5 +381,7 @@ export async function* runAgentTurn(
       },
     });
 
-  yield* orchestrateAgentEvents(buildMessages(history, userMessage), run);
+  // Both limits move together: lowering the steps per episode while leaving the
+  // episode count alone just redistributes the same total spend.
+  yield* orchestrateAgentEvents(buildMessages(history, userMessage), run, limits.maxEpisodes);
 }

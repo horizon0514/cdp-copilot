@@ -1,7 +1,16 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { streamAgentEvents, buildMessages, type AgentEvent, type StopInfo } from './agentLoop';
+import {
+  streamAgentEvents,
+  buildMessages,
+  turnLimits,
+  MAX_STEPS,
+  type AgentEvent,
+  type StopInfo,
+} from './agentLoop';
+import { DEFAULT_MAX_EPISODES } from './orchestrator';
+import { LIVE_NOTE_MARKER } from './liveNote';
 import { scriptedModel, type StepScript } from '../../test/mockModel';
 
 const okTool = tool({
@@ -235,8 +244,12 @@ describe('streamAgentEvents — extra instructions (task-ledger digest)', () => 
     expect(prompts[0]).toContain('extract_content, when meaning identifies');
   });
 
-  it('appends the digest to the system prompt on every step, staying current', async () => {
-    const prompts: string[] = [];
+  /** The model-facing prompt as the provider sees it: system first, then turns. */
+  type WirePrompt = { role: string; content: unknown }[];
+
+  /** Runs a three-step turn whose digest changes as findings accumulate. */
+  async function digestRun() {
+    const prompts: WirePrompt[] = [];
     let findings = 0;
     const savingTool = tool({
       description: 'saves a finding',
@@ -250,7 +263,7 @@ describe('streamAgentEvents — extra instructions (task-ledger digest)', () => 
         { do: 'tool', name: 'savingTool' },
         { do: 'text', text: 'done' },
       ],
-      (prompt) => prompts.push(JSON.stringify(prompt)),
+      (prompt) => prompts.push(structuredClone(prompt) as WirePrompt),
     );
 
     for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'go' }], {
@@ -260,21 +273,48 @@ describe('streamAgentEvents — extra instructions (task-ledger digest)', () => 
     })) {
       void _;
     }
+    return prompts;
+  }
+
+  const asText = (message: { content: unknown }) => JSON.stringify(message.content);
+
+  it('carries the digest in the last message, staying current', async () => {
+    const prompts = await digestRun();
 
     expect(prompts).toHaveLength(3);
     // Re-evaluated before each step, so mid-turn tool writes show up next step.
-    expect(prompts[0]).toContain('Findings so far: 0');
-    expect(prompts[1]).toContain('Findings so far: 1');
-    expect(prompts[2]).toContain('Findings so far: 2');
-    // The base system prompt is still there alongside the digest.
-    expect(prompts[2]).toContain('You are Pagehand');
+    expect(asText(prompts[0].at(-1)!)).toContain('Findings so far: 0');
+    expect(asText(prompts[1].at(-1)!)).toContain('Findings so far: 1');
+    expect(asText(prompts[2].at(-1)!)).toContain('Findings so far: 2');
   });
 
-  it('sends the bare system prompt when there is nothing extra', async () => {
-    const prompts: string[] = [];
-    const model = scriptedModel(
-      [{ do: 'text', text: 'hi' }],
-      (prompt) => prompts.push(JSON.stringify(prompt)),
+  it('keeps the system prompt byte-identical while the digest changes', async () => {
+    // The property the hosted path's economics rest on. Prompt caches match a
+    // *prefix*, so a digest at the front costs the entire cache on every step
+    // that writes to the ledger — measured at 4x the price of the same step
+    // with a warm cache. It has to ride at the end instead.
+    const prompts = await digestRun();
+
+    const systems = prompts.map((prompt) => JSON.stringify(prompt[0]));
+    expect(systems[0]).toContain('You are Pagehand');
+    expect(systems[1]).toBe(systems[0]);
+    expect(systems[2]).toBe(systems[0]);
+    expect(systems[0]).not.toContain('Findings so far');
+  });
+
+  it('does not let last step’s digest linger in this step’s history', async () => {
+    // The `messages` override carries forward, so an un-stripped note would
+    // both pile up and show the model a stale ledger next to the current one.
+    const prompts = await digestRun();
+
+    const stale = prompts[2].filter((message) => asText(message).includes('Findings so far'));
+    expect(stale).toHaveLength(1);
+  });
+
+  it('sends a pure append — no note at all — when there is nothing extra', async () => {
+    const prompts: WirePrompt[] = [];
+    const model = scriptedModel([{ do: 'text', text: 'hi' }], (prompt) =>
+      prompts.push(structuredClone(prompt) as WirePrompt),
     );
 
     for await (const _ of streamAgentEvents(model, [{ role: 'user', content: 'go' }], {
@@ -285,8 +325,8 @@ describe('streamAgentEvents — extra instructions (task-ledger digest)', () => 
       void _;
     }
 
-    expect(prompts[0]).toContain('You are Pagehand');
-    expect(prompts[0]).not.toContain('Findings so far');
+    expect(JSON.stringify(prompts[0][0])).toContain('You are Pagehand');
+    expect(JSON.stringify(prompts[0])).not.toContain(LIVE_NOTE_MARKER);
   });
 });
 
@@ -432,5 +472,27 @@ describe('streamAgentEvents — responseMessages for multi-turn history', () => 
     // either way the payload must retain a tool-call or tool-result part.
     const serialized = JSON.stringify(done.responseMessages);
     expect(serialized).toMatch(/tool-call|tool-result|okTool/);
+  });
+});
+
+describe('turnLimits — how far one turn may run, by who pays', () => {
+  it('lets a BYOK turn run to the full ceiling', () => {
+    // The user's own key, their own money, and they can watch it happen.
+    expect(turnLimits('deepseek')).toEqual({ maxSteps: MAX_STEPS, maxEpisodes: DEFAULT_MAX_EPISODES });
+    expect(turnLimits('anthropic').maxSteps).toBe(MAX_STEPS);
+  });
+
+  it('bounds a hosted turn harder, on both axes at once', () => {
+    // The limits multiply — root steps times episodes — so lowering only one of
+    // them redistributes the worst case instead of shrinking it.
+    const hosted = turnLimits('hosted');
+    expect(hosted.maxSteps).toBeLessThan(MAX_STEPS);
+    expect(hosted.maxEpisodes).toBeLessThan(DEFAULT_MAX_EPISODES);
+
+    const byok = turnLimits('deepseek');
+    const worstCase = (limits: typeof hosted) => limits.maxSteps * (1 + limits.maxEpisodes);
+    // Whatever the numbers get tuned to, the hosted worst case must stay at
+    // most half of BYOK's — that ratio is the point of the split.
+    expect(worstCase(hosted) * 2).toBeLessThanOrEqual(worstCase(byok));
   });
 });

@@ -14,7 +14,7 @@ export type AgentRunner = (
   mode: AgentMode,
 ) => AsyncGenerator<AgentEvent>;
 
-const DEFAULT_MAX_EPISODES = 8;
+export const DEFAULT_MAX_EPISODES = 8;
 
 /** Read the last valid control action from one inner-loop response. */
 export function controlActionFrom(messages: TurnResponseMessage[]): TaskControlAction | null {
