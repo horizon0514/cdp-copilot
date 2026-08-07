@@ -16,8 +16,9 @@ this list wins.
 | Pricing model | **Flat subscription with a hard cost ceiling**, not prepaid credits, not a soft cap |
 | Auth + DB | **Supabase** (auth + Postgres in one; JWTs verified locally, see §4.3) |
 | Backend stack | **One Next.js App Router project** on Vercel — pages *and* API, see §6 |
-| Hosting | **All-in Vercel.** The 60s Hobby function ceiling is a known, accepted risk |
+| Hosting | **All-in Vercel**, functions in `hkg1` (§6.2). The "60s Hobby ceiling" this row used to cite does not exist — see §6.1 |
 | Model transport | **Option A** (OpenAI-compatible proxy), see §4.2 |
+| Enforcement unit | **The server never reasons about turns.** It sees one step and cannot see turn boundaries; anything a client sends about them can be forged. Enforcement is per-period budget plus a rolling per-user spend window. See §4.4 |
 
 Still open: whether BYOK is Pro-only (§10 Q4) — it has a China-market wrinkle
 that §3.1 gets backwards. Does not block Phase 1.
@@ -201,13 +202,36 @@ An earlier step of nearly identical size (4,436 prompt) but only 64 cached
 tokens cost **407 µUSD** — four times as much. **Prompt caching is the single
 biggest lever on cost per turn**, worth more than the choice of model.
 
-Which puts the compaction strategy in a new light. `elideStaleSnapshots` and
-`compactHistory` rewrite the message history between steps to keep long turns
-inside the context window (`agentLoop.ts`), and every rewrite invalidates the
-cached prefix past the edit point. Note `cached_tokens` stays flat at 4,352
-across both steps above: only the stable head is being reused. So context
-trimming and prompt caching are in direct tension, and the trade is now
-measurable rather than theoretical — worth revisiting before setting prices.
+**Diagnosed and fixed.** The 407 µUSD outlier was not the message trimming — it
+was the *front* of the prompt moving. The ledger digest and reflection note were
+appended to `instructions`, which sits ahead of everything else, and every
+provider's prompt cache matches a **prefix**: one changed byte at position zero
+and nothing after it can be reused. So every step following a ledger write paid
+full price for the entire history. Both volatile blocks now ride as a live note
+at the *end* of the messages instead (`src/lib/llm/liveNote.ts`), where the
+break lands on the last step's assistant and tool messages — new and uncacheable
+anyway. `instructions` is now byte-stable for the whole turn, and there is a
+test asserting exactly that, because it is a property that would regress
+silently.
+
+**Anthropic needs a second fix, already landed.** DeepSeek and OpenAI cache
+without being asked; Anthropic caches only up to an explicit breakpoint, so a
+Claude model served without one pays full price for the whole resent history on
+every step — silently, since the requests all succeed. The proxy now sends the
+router's request-root form, `cache_control: { type: 'ephemeral' }`, for
+`anthropic/*` models only (it advances the breakpoint as the conversation grows,
+which is the shape an agent loop needs; the per-block form caps at four and
+would need the extension to place them). Gated on the model prefix because an
+unrecognised root field is a 400 waiting to happen elsewhere. Nothing on the
+allowlist uses it yet — that is the point, it cannot be forgotten on the day
+Claude joins.
+
+`elideStaleSnapshots` and `compactHistory` were left alone. They do break the
+prefix, but the trade is closer than it looks: carrying a stale 12K-token
+snapshot costs ~1.2K tokens-equivalent *per step* at the cache-hit rate, while
+eliding it costs the uncached suffix *once*. Around a dozen remaining steps they
+break even, and the context-window argument then decides it. Not worth churning
+without a measurement that says otherwise.
 
 The $0.05–0.10 heavy-turn figure should therefore be read as an **upper bound**
 (no cache reuse), not an expected value.
@@ -353,6 +377,7 @@ Tables:
 ```
 auth.users        -- Supabase built-in
 subscriptions     user_id, stripe_customer_id, plan, current_period_end
+users             user_id, blocked, normalized_email (unique — §4.5)
 balances          user_id, period_start, granted_micros, used_micros, in_flight
 usage_events      user_id, ts, model, tokens_in/out/cached, micro_usd, turn_id
 ```
@@ -361,7 +386,21 @@ usage_events      user_id, ts, model, tokens_in/out/cached, micro_usd, turn_id
 `usage.cost` per request, so we store what we were charged instead of
 recomputing it from a price list that could silently go stale (§2).
 
-**Two mechanics that are easy to get wrong:**
+**What the server can and cannot enforce.** It cannot enforce anything
+per-turn. The agent loop runs in the panel, so a request arriving at the proxy
+is one step with no way to tell which turn it belongs to — and a `turn_id`
+supplied by the client is a claim from the party being metered, so it is fine
+for grouping `usage_events` in a dashboard and worthless as a control. Drop the
+per-turn cost ceiling that earlier revisions listed here. What survives:
+
+- **Hard per-period budget.** `granted_micros` vs `used_micros`; 402 when spent.
+  This is the real ceiling.
+- **Rolling per-user spend window** (e.g. µUSD per 5 minutes, alongside rpm and
+  concurrency). Needs no client cooperation and is what actually contains a
+  runaway loop or a scripted abuser between period boundaries.
+- **Per-request caps** — model allowlist, `max_tokens` clamp, body size.
+
+**Three mechanics that are easy to get wrong:**
 
 1. **Usage arrives only in the final SSE frame.** OpenRouter includes it
    unconditionally, so nothing has to be requested — but the proxy still forces
@@ -370,18 +409,78 @@ recomputing it from a price list that could silently go stale (§2).
    tee’d stream and debit after it closes (`after()` on Next).
    **A missing usage frame must raise, not default to zero** — zero is
    indistinguishable from a free request and would serve tokens for nothing.
-2. **Debiting is post-hoc**, so a user at zero balance can fire N requests in
+2. **The final frame often never arrives, and that is not an edge case.** A turn
+   is up to a hundred steps behind a stop button, so streams torn down
+   mid-flight are routine — and the router still charges us for what was
+   generated first (providers with stream cancellation bill the partial
+   completion; providers without it keep generating and bill the whole thing).
+   Without a recovery path, "press stop" is a working way to use the hosted
+   model for free, and an easy one to stumble into. So `readUsage` also returns
+   the **generation id** from the stream's frames, and the proxy falls back to
+   `GET /generation?id=` (`lookupGeneration`, retried — the record settles
+   slightly after the stream dies) to learn what a torn-down request cost.
+   `onUsage` reports `source: 'stream' | 'lookup' | 'missing'`; **`missing` is
+   the leak counter and belongs on a dashboard.**
+   Still outstanding: `after()` is not guaranteed to survive a client
+   disconnect, which is exactly when the lookup fires. If `missing` turns out to
+   be non-trivial in practice, the fix is a `pending_generations` row written
+   *before* the upstream call and swept by a cron that settles it from the same
+   lookup — so the account survives the function being killed.
+3. **Debiting is post-hoc**, so a user at zero balance can fire N requests in
    parallel and have them all pass the pre-check. Needs a per-user in-flight
    counter (the `balances.in_flight` column, or Upstash Redis) reserved before
    the upstream call and released after.
 
+**Design the block flag into the balance pre-check, not after it.** Today
+`authenticate()` verifies the JWT locally and touches no database — deliberately,
+because a turn verifies a hundred times (§4.3). That means there is currently no
+point at which a ban could take effect: a blocked user keeps working until their
+token expires. Adding a lookup *for the ban alone* would put a database round
+trip on the hot path and undo the reason local verification exists.
+
+But the balance pre-check has to read the user's row anyway. So `users.blocked`
+must be **selected and cached in the same query and the same short TTL** as
+`granted_micros` / `used_micros` — then banning costs nothing extra and takes
+effect within the cache TTL. Done in that order it is free; retrofitted
+afterwards it is either a second round trip or a ban that does not bite.
+
+The corollary is that **no admin UI is on the critical path**. With `blocked` in
+the schema and `granted_micros` writable, banning and comping are one edit each
+in the Supabase table editor. Build a `/admin` page in `cloud/` when doing it by
+hand starts to hurt — gated the way `ALLOWED_EMAILS` gates the preview — rather
+than standing up a separate admin vendor for a handful of rows.
+
 ### 4.5 Abuse controls (non-optional)
 
 - Auth required for hosted mode
-- Per-user rate limit (rpm + concurrent turns)
-- Max steps / max episodes already in orchestrator — enforce server-side mirrors where possible (e.g. reject absurd `max_tokens`)
+- Per-user rate limit: rpm, concurrent requests, and a **rolling µUSD window**
+  (§4.4). Not "concurrent turns" — the server cannot see a turn.
+- Max steps / max episodes live in the orchestrator, client-side, so they are a
+  cost *estimate*, not a control. Mirror what can be mirrored per request
+  (reject absurd `max_tokens`, allowlist models) and let the rolling window
+  catch the rest.
 - Router key spend limit + alert
 - Content size caps on request body (snapshots can be large — truncate server-side too)
+
+**Free-tier farming.** A hard per-account cap moves the attack from "burn one
+account" to "make more accounts", so the free grant has to be worth less than
+the effort of a fresh mailbox. Cheapest measures, in the order they pay off:
+
+1. **Normalize the email before the uniqueness check** — strip Gmail dots and
+   everything after `+`. Nearly all casual farming is `me+1@gmail.com`, and a
+   unique index on the normalized address ends it for one migration's work.
+2. **Block disposable domains** with a maintained list. Cheap, catches the lazy
+   majority, needs occasional refresh.
+3. **Size the free grant so farming is not worth it.** A heavy turn is
+   $0.05–0.45 (§3.2.1). A free grant worth a few turns is a demo; one worth a
+   week of work is a target. This is the actual defense — the other two only
+   raise the cost per identity.
+4. **Cap accounts per install.** Generate a UUID in `chrome.storage` at install
+   and send it at sign-up. Trivially bypassed by a determined user, which is
+   fine: it is aimed at the undetermined one.
+
+Deliberately not doing: phone verification, or a card on file for Free. Both cost
+more conversion than the tokens they save at this stage.
 
 ## 5. Code impact (extension)
 
@@ -390,11 +489,12 @@ recomputing it from a price list that could silently go stale (§2).
 | `src/lib/storage/schema.ts` | Add `hosted` to `ProviderId`; make `apiKey` optional (hosted has none); store auth session |
 | `src/lib/llm/providers.ts` | Hosted branch → Pagehand baseURL, auth via `hostedFetch`; keep existing BYOK switch |
 | `src/lib/llm/hostedFetch.ts` | **New.** Per-request token injection + refresh; never a static `apiKey` (§4.3) |
-| `src/lib/llm/agentLoop.ts` | No semantic change. Hosted path should run a **lower `maxSteps`** than BYOK’s 100 (§3.2.1) |
+| `src/lib/llm/agentLoop.ts` | **Done.** `turnLimits(provider)` gives the hosted path 60 steps × 5 episodes against BYOK’s 100 × 8 — worst case per user message drops from ~900 model calls (~$0.45) to ~360 (~$0.18). Both axes had to move: they multiply |
+| `src/lib/llm/liveNote.ts` | **Done.** Volatile per-step state moved out of `instructions` so the prompt prefix stays cacheable (§3.2.2) |
 | `SettingsPanel` | Default: account + plan + model picker; Advanced: BYOK providers |
 | Onboarding | Gate on **signed in** (hosted), not on API key |
 | Store listing + privacy + website | Rewrite backend/privacy claims. Site and policy done; the listing text lives in the Web Store dashboard and still says "no Pagehand backend" |
-| `extract_content` sub-`generateText` | Must also go hosted path / count against quota |
+| `extract_content` sub-call | Goes through `resolveModel`, so it is already on the hosted path and billable. **Done:** switched from `generateText` to a collected `streamText` with an output cap and a 45s deadline — it is the one call that can reach the proxy's own 60s `maxDuration`, where the kill loses both the response *and* the usage frame (§6.1) |
 
 ## 6. Backend shape
 
@@ -420,19 +520,71 @@ cloud/            # Next.js App Router — pages AND api
 Next.js rather than Hono because `cloud/` has real pages to render, and Next is
 the zero-friction path on Vercel. The proxy itself is still written as a plain
 `(Request) => Promise<Response>` in `lib/proxy.ts` — a Next route handler
-already has that signature, so if the 60s ceiling ever forces a move to
-Cloudflare Workers, one file moves unchanged. That hedge is free; take it.
+already has that signature, so if a platform limit or a pricing change ever
+forces a move to another runtime, one file moves unchanged. That hedge is free;
+take it — even though the duration limit it was originally hedging against
+turned out not to exist (§6.1).
 
 **DB:** Supabase Postgres (same project as auth).
 
-### 6.1 Accepted risk: Vercel Hobby
+### 6.1 Vercel Hobby — the duration risk is gone; the plan restriction is not
 
-- Hobby caps functions at **60s**, and a step carrying a large snapshot to a slow
-  model can exceed it — the stream is then cut mid-turn. Accepted for now.
-- The default timeout is well below 60s, so the proxy route **must** declare
-  `export const maxDuration = 60` or it will cut out far earlier than that.
-- Hobby is a non-commercial plan. Fine for the spike; **Pro is required before
-  charging anyone.**
+**Corrected.** Earlier revisions of this document treated a **60s Hobby function
+ceiling** as an accepted risk and as an argument for Pro. That ceiling no longer
+exists: with fluid compute (default for new projects) the platform allows **300s
+default and maximum on Hobby**, and 300s default / 800s maximum on Pro. Nothing
+about a long agent step is blocked by the plan.
+
+What remains true:
+
+- The route must still declare `maxDuration` explicitly, since the framework
+  default is well below the platform maximum. It is set to **60s — our bound,
+  not the platform's** (see the comment on the route). A step that has not
+  answered in a minute has gone wrong.
+- Request/response bodies are capped at **4.5 MB** by the platform. Our
+  `MAX_REQUEST_BYTES` is 4 MB, deliberately just under, so an oversized snapshot
+  gets our 413 with a message rather than the platform's.
+- **Hobby is a non-commercial plan.** This is the actual reason Pro is required
+  before charging anyone — not duration.
+
+### 6.2 Where the proxy runs — latency for mainland users
+
+Today functions run in `iad1` (Washington D.C.), the default. That is the wrong
+side of the planet for the users we have, and the cost compounds: a turn is up
+to a hundred sequential steps, so every millisecond of round trip is paid a
+hundred times. Vercel's PoPs terminate TCP near the user but **TLS terminates at
+the function's region**, so the handshake itself currently crosses the Pacific
+too.
+
+The move is smaller than it looks. Region choice is **not** a Pro feature — every
+plan runs in one region and every plan can choose which one; Pro only buys the
+ability to run in several. So **set `regions: ["hkg1"]` (Hong Kong, `ap-east-1`)
+now, on Hobby**, and let the Pro upgrade happen on its own schedule for the
+commercial-use reason (§6.1). No migration, no new vendor, no waiting.
+
+Hong Kong specifically, and not a mainland region: hosting inside mainland China
+requires ICP 备案 (a filing tied to a domestic host and a real corporate entity,
+with an approval wait). Hong Kong, Macau and Taiwan do not count as mainland for
+that rule, so a Hong Kong region carries none of it while still reaching
+mainland users at tens of milliseconds instead of hundreds.
+
+Two things this does *not* fix, worth stating so nobody expects them:
+
+- **The proxy → OpenRouter leg still crosses the Pacific.** OpenRouter is US
+  infrastructure. Hong Kong shortens the leg that carries the streamed tokens
+  and the handshake, which is the leg whose quality actually varies; it does not
+  shorten the total path.
+- **Possibly a third crossing.** If OpenRouter routes our DeepSeek traffic to
+  DeepSeek's own API rather than to a US reseller of the same weights, the path
+  is CN → HK → US → CN. Worth measuring before assuming it; if it is real, the
+  answer is a direct DeepSeek call for that one model — which costs us
+  `usage.cost` and reintroduces the price table §2 exists to avoid, so it is a
+  trade to make on evidence, not on suspicion.
+
+Keep `maxDuration = 60` and the 45s `extract_content` deadline regardless of
+plan. They were originally sized against a platform ceiling that turned out not
+to exist (§6.1), but a bound on a single model call is a good idea on its own
+merits — the failure it prevents is an expensive step nobody is watching.
 
 ## 7. Phased delivery
 
